@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "989569475449",
+    "project_id": "boaacao-5a414",
+    "storage_bucket": "boaacao-5a414.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:989569475449:android:5a9feebcaa058fe05045a8",
+        "android_client_info": {
+          "package_name": "br.unasp.boacao"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1C1GxQBFkEDrTGiAPJvpc8mLcm8So4BM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
