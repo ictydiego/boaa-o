@@ -1,5 +1,6 @@
 package br.unasp.boacao.presentation.volunteer
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -7,6 +8,7 @@ import br.unasp.boacao.data.repository.PointsRepository
 import br.unasp.boacao.data.repository.VolunteerRepository
 import br.unasp.boacao.domain.model.Donation
 import br.unasp.boacao.domain.model.UserRole
+import br.unasp.boacao.util.NetworkUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,7 +38,7 @@ class VolunteerViewModel(
 
     init {
         loadVolunteerName()
-        loadData()
+        startRealtimeListeners()
         loadNgos()
     }
 
@@ -47,6 +49,31 @@ class VolunteerViewModel(
                 val doc = FirebaseFirestore.getInstance().collection("users").document(userId).get().await()
                 _uiState.value = _uiState.value.copy(volunteerName = doc.getString("name") ?: "Voluntário")
             } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Real-time listeners: when a donor creates a donation, volunteers see it immediately.
+     * When status changes (another volunteer claims it), it disappears from the list.
+     */
+    private fun startRealtimeListeners() {
+        val userId = auth.currentUser?.uid ?: return
+        _uiState.value = _uiState.value.copy(isLoading = true)
+
+        viewModelScope.launch {
+            launch {
+                repository.observeAvailableDonations().collect { donations ->
+                    _uiState.value = _uiState.value.copy(
+                        availableDonations = donations,
+                        isLoading = false
+                    )
+                }
+            }
+            launch {
+                repository.observeMyDeliveries(userId).collect { deliveries ->
+                    _uiState.value = _uiState.value.copy(myDeliveries = deliveries)
+                }
+            }
         }
     }
 
@@ -87,25 +114,50 @@ class VolunteerViewModel(
         }
     }
 
-    fun claimDonation(donation: Donation) {
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    /**
+     * Claims a donation with internet check + concurrency protection.
+     * Uses Firestore transaction to prevent two volunteers from claiming the same donation.
+     */
+    fun claimDonation(context: Context, donation: Donation, onResult: (Boolean, String?) -> Unit) {
+        if (!NetworkUtils.isOnline(context)) {
+            onResult(false, "Sem conexão com a internet. Verifique sua rede e tente novamente.")
+            return
+        }
         val userId = auth.currentUser?.uid ?: return
         val userName = _uiState.value.volunteerName
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             repository.claimDonation(donation.id, userId, userName)
-                .onSuccess { loadData() }
-                .onFailure { e -> _uiState.value = _uiState.value.copy(isLoading = false, error = e.message) }
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    onResult(true, null)
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    onResult(false, e.message)
+                }
         }
     }
 
-    fun confirmPickup(donationId: String, pin: String, onComplete: (Boolean, String?) -> Unit) {
+    /**
+     * Confirms pickup with internet check + transaction-based PIN validation.
+     */
+    fun confirmPickup(context: Context, donationId: String, pin: String, onComplete: (Boolean, String?) -> Unit) {
+        if (!NetworkUtils.isOnline(context)) {
+            onComplete(false, "Sem conexão com a internet. Verifique sua rede e tente novamente.")
+            return
+        }
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             val result = repository.confirmPickup(donationId, pin)
             if (result.isSuccess) {
                 pointsRepository.addPoints(userId, 10, "Coleta confirmada! +10 pontos")
-                loadData()
+                _uiState.value = _uiState.value.copy(isLoading = false)
                 onComplete(true, null)
             } else {
                 _uiState.value = _uiState.value.copy(isLoading = false)

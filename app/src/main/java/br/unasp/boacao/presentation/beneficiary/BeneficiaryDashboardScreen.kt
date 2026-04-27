@@ -336,7 +336,7 @@ fun ReceiveByPinDialog(
                             TextButton(onClick = { step = 0; code = "" }) { Text("← Voltar") }
                             Button(
                                 onClick = {
-                                    viewModel.confirmDelivery(donation, code, proofBase64) { success, errorMsg ->
+                                    viewModel.confirmDelivery(context, donation, code, proofBase64) { success, errorMsg ->
                                         if (success) onConfirmed()
                                         else Toast.makeText(context, errorMsg ?: "Erro", Toast.LENGTH_SHORT).show()
                                     }

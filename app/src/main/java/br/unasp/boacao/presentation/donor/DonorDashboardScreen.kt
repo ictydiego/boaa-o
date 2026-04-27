@@ -1,5 +1,7 @@
 package br.unasp.boacao.presentation.donor
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,9 +20,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -73,37 +79,64 @@ fun DonorDashboardScreen(navController: NavController) {
         ) { DatePicker(state = if (periodStep == 0) startPickerState else endPickerState) }
     }
 
+    val animatedPoints by animateIntAsState(targetValue = state.donorPoints, label = "points")
+    val animatedDonations by animateIntAsState(targetValue = state.donorDonationCount, label = "donations")
+
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
                 containerColor = warmPrimaryColor,
-                contentColor = Color.White
-            ) { Icon(Icons.Default.Add, contentDescription = "Nova Doação") }
+                contentColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Nova Doação")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Nova Doação", fontWeight = FontWeight.SemiBold)
+            }
         }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            // Points & stats header
+            // Stats header with gradient
             Card(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
-                colors = CardDefaults.cardColors(containerColor = warmPrimaryColor),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(4.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Brush.horizontalGradient(listOf(warmPrimaryColor, Color(0xFFFF8A50))))
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                        Text("${state.donorPoints}", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
-                        Text("pontos", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
-                    }
-                    Divider(modifier = Modifier.height(48.dp).width(1.dp), color = Color.White.copy(alpha = 0.3f))
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.VolunteerActivism, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                        Text("${state.donorDonationCount}", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
-                        Text("doações", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
+                    Row(
+                        modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Star, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("$animatedPoints", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
+                            Text("pontos", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                        }
+                        Box(modifier = Modifier.width(1.dp).height(60.dp).background(Color.White.copy(alpha = 0.3f)))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.VolunteerActivism, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("$animatedDonations", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
+                            Text("doações", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                        }
                     }
                 }
             }
@@ -125,6 +158,7 @@ fun DonorDashboardScreen(navController: NavController) {
                                 DonorStatusFilter.DELIVERED -> "Entregue"
                             }, fontSize = 12.sp)
                         },
+                        shape = RoundedCornerShape(20.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = warmPrimaryColor.copy(alpha = 0.15f),
                             selectedLabelColor = warmPrimaryColor
@@ -151,6 +185,7 @@ fun DonorDashboardScreen(navController: NavController) {
                                 DonorTimeFilter.PERIOD -> ""
                             }, fontSize = 12.sp)
                         },
+                        shape = RoundedCornerShape(20.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = warmPrimaryColor.copy(alpha = 0.15f),
                             selectedLabelColor = warmPrimaryColor
@@ -169,6 +204,7 @@ fun DonorDashboardScreen(navController: NavController) {
                         )
                     },
                     leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                    shape = RoundedCornerShape(20.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = warmPrimaryColor.copy(alpha = 0.15f),
                         selectedLabelColor = warmPrimaryColor
@@ -184,22 +220,23 @@ fun DonorDashboardScreen(navController: NavController) {
                         modifier = Modifier.align(Alignment.Center).padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+                        Icon(Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(72.dp), tint = Color(0xFFE0E0E0))
                         Spacer(modifier = Modifier.height(16.dp))
                         if (state.donations.isEmpty()) {
-                            Text("Nenhuma doação cadastrada ainda.", color = Color.Gray, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                            Text("Clique no + para fazer o bem!", color = warmPrimaryColor, fontWeight = FontWeight.Medium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            Text("Nenhuma doação cadastrada ainda.", color = Color.Gray, textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Clique em Nova Doação para fazer o bem!", color = warmPrimaryColor, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, fontSize = 13.sp)
                         } else {
-                            Text("Nenhuma doação neste filtro.", color = Color.Gray, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            Text("Nenhuma doação neste filtro.", color = Color.Gray, textAlign = TextAlign.Center)
                         }
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(filtered) { donation ->
+                        items(filtered, key = { it.id }) { donation ->
                             DonationCard(
                                 donation = donation,
                                 onCancel = if (donation.status == DonationStatus.AVAILABLE) {
@@ -233,14 +270,21 @@ fun DonationCard(donation: Donation, onCancel: (() -> Unit)? = null) {
 
     val statusColor = when (donation.status) {
         DonationStatus.AVAILABLE -> Color(0xFF4CAF50)
-        DonationStatus.CLAIMED, DonationStatus.IN_TRANSIT -> Color(0xFFFFC107)
+        DonationStatus.CLAIMED -> Color(0xFFFFA726)
+        DonationStatus.IN_TRANSIT -> Color(0xFF1976D2)
         DonationStatus.DELIVERED -> Color(0xFF9E9E9E)
     }
     val statusText = when (donation.status) {
-        DonationStatus.AVAILABLE -> "Aguardando Voluntário"
+        DonationStatus.AVAILABLE -> "Aguardando"
         DonationStatus.CLAIMED -> "Voluntário a caminho"
         DonationStatus.IN_TRANSIT -> "A caminho da ONG"
-        DonationStatus.DELIVERED -> "Entregue à ONG!"
+        DonationStatus.DELIVERED -> "Entregue"
+    }
+    val statusIcon = when (donation.status) {
+        DonationStatus.AVAILABLE -> Icons.Default.HourglassEmpty
+        DonationStatus.CLAIMED -> Icons.Default.DirectionsCar
+        DonationStatus.IN_TRANSIT -> Icons.Default.LocalShipping
+        DonationStatus.DELIVERED -> Icons.Default.CheckCircle
     }
 
     if (showCancelDialog) {
@@ -252,95 +296,159 @@ fun DonationCard(donation: Donation, onCancel: (() -> Unit)? = null) {
             confirmButton = {
                 Button(
                     onClick = { showCancelDialog = false; onCancel?.invoke() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                    shape = RoundedCornerShape(12.dp)
                 ) { Text("Cancelar doação") }
             },
-            dismissButton = { TextButton(onClick = { showCancelDialog = false }) { Text("Manter") } }
+            dismissButton = { TextButton(onClick = { showCancelDialog = false }) { Text("Manter") } },
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(4.dp),
+        elevation = CardDefaults.cardElevation(if (expanded) 4.dp else 1.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(16.dp),
         onClick = { expanded = !expanded }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(text = donation.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Badge(containerColor = statusColor) {
-                        Text(statusText, color = if (donation.status == DonationStatus.AVAILABLE || donation.status == DonationStatus.DELIVERED) Color.White else Color.Black, modifier = Modifier.padding(horizontal = 4.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = donation.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF212121))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(statusText, fontSize = 12.sp, color = statusColor, fontWeight = FontWeight.Medium)
                     }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Badge(containerColor = statusColor.copy(alpha = 0.15f)) {
+                        Text(
+                            when (donation.status) {
+                                DonationStatus.AVAILABLE -> "Ativo"
+                                DonationStatus.CLAIMED, DonationStatus.IN_TRANSIT -> "Trânsito"
+                                DonationStatus.DELIVERED -> "Concluído"
+                            },
+                            color = statusColor,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp)
+                        contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            if (expanded) {
-                Spacer(modifier = Modifier.height(8.dp))
-                if (donation.items.isNotEmpty()) {
-                    donation.items.forEach { item ->
+            AnimatedVisibility(visible = expanded) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = Color(0xFFF0F0F0))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    if (donation.items.isNotEmpty()) {
+                        donation.items.forEach { item ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                                Icon(Icons.Default.FiberManualRecord, contentDescription = null, tint = warmColor, modifier = Modifier.size(8.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("${item.name} — ${item.quantity}", style = MaterialTheme.typography.bodyMedium, color = Color.DarkGray)
+                            }
+                        }
+                    } else if (donation.description.isNotBlank()) {
+                        Text(text = donation.description, style = MaterialTheme.typography.bodyMedium, color = Color.DarkGray)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = donation.pickupAddress, fontSize = 12.sp, color = Color.Gray)
+                    }
+
+                    if (donation.volunteerName != null && donation.volunteerName.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.FiberManualRecord, contentDescription = null, tint = warmColor, modifier = Modifier.size(8.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("${item.name} — ${item.quantity}", style = MaterialTheme.typography.bodyMedium, color = Color.DarkGray)
+                            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "Voluntário: ${donation.volunteerName}", fontSize = 12.sp, color = Color.Gray)
                         }
                     }
-                } else if (donation.description.isNotBlank()) {
-                    Text(text = donation.description, style = MaterialTheme.typography.bodyMedium, color = Color.DarkGray)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = donation.pickupAddress, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                }
 
-                if (donation.status == DonationStatus.AVAILABLE || donation.status == DonationStatus.CLAIMED) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Column(
-                        modifier = Modifier.fillMaxWidth().background(Color(0xFFFFF3E0), RoundedCornerShape(8.dp)).padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.QrCode, contentDescription = null, tint = warmColor, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Código de Retirada — mostre ao voluntário", fontSize = 12.sp, color = Color.Gray)
+                    if (donation.status == DonationStatus.AVAILABLE || donation.status == DonationStatus.CLAIMED) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.QrCode, contentDescription = null, tint = warmColor, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Código de Retirada", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                                }
+                                Text("Mostre ao voluntário quando ele chegar", fontSize = 11.sp, color = Color.LightGray)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                val qrBitmap = remember(donation.pickupCode) { QrCodeUtils.generateQrBitmap(donation.pickupCode, 300) }
+                                if (qrBitmap != null) {
+                                    Card(
+                                        shape = RoundedCornerShape(8.dp),
+                                        elevation = CardDefaults.cardElevation(2.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                                    ) {
+                                        Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "QR Code", modifier = Modifier.size(140.dp).padding(8.dp), contentScale = ContentScale.Fit)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = donation.pickupCode, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp, color = warmColor, letterSpacing = 6.sp)
+                            }
                         }
+                    }
+
+                    if (donation.status == DonationStatus.DELIVERED && donation.deliveredAt.isNotBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        val qrBitmap = remember(donation.pickupCode) { QrCodeUtils.generateQrBitmap(donation.pickupCode, 300) }
-                        if (qrBitmap != null) {
-                            Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "QR Code", modifier = Modifier.size(140.dp), contentScale = ContentScale.Fit)
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Entregue em ${donation.deliveredAt}", fontSize = 13.sp, color = Color(0xFF388E3C), fontWeight = FontWeight.Medium)
+                            }
                         }
-                        Text(text = donation.pickupCode, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = warmColor, letterSpacing = 4.sp)
                     }
-                }
 
-                if (onCancel != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = { showCancelDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red)
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Cancelar Doação")
+                    if (onCancel != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick = { showCancelDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Cancelar Doação")
+                        }
                     }
                 }
-            } else {
-                // Collapsed — show brief info
+            }
+
+            if (!expanded) {
                 Spacer(modifier = Modifier.height(4.dp))
                 if (donation.items.isNotEmpty()) {
                     Text(
-                        text = donation.items.take(2).joinToString(" • ") { it.name } + if (donation.items.size > 2) " +${donation.items.size - 2}" else "",
-                        fontSize = 12.sp, color = Color.Gray
+                        text = donation.items.take(2).joinToString(" · ") { it.name } + if (donation.items.size > 2) " +${donation.items.size - 2}" else "",
+                        fontSize = 12.sp, color = Color.LightGray
                     )
                 }
             }
@@ -383,20 +491,30 @@ fun CreateDonationDialog(
     val canSave = !isSaving && validItems.isNotEmpty() && expiryDate.isNotBlank()
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+        Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(24.dp).verticalScroll(scrollState)) {
-                Text("Nova Doação", style = MaterialTheme.typography.headlineSmall, color = warmPrimaryColor, fontWeight = FontWeight.Bold)
-                if (donorAddress.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(donorAddress, fontSize = 12.sp, color = Color.Gray)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier.size(44.dp).clip(CircleShape).background(warmPrimaryColor.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.VolunteerActivism, contentDescription = null, tint = warmPrimaryColor, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Nova Doação", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color(0xFF212121))
+                        if (donorAddress.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(donorAddress, fontSize = 11.sp, color = Color.Gray)
+                            }
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                Text("Itens da Doação", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.DarkGray)
+                Text("Itens da Doação", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF424242))
                 Spacer(modifier = Modifier.height(8.dp))
                 items.forEachIndexed { index, item ->
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -406,7 +524,8 @@ fun CreateDonationDialog(
                             label = { Text("Item") },
                             placeholder = { Text("Ex: Pão Francês") },
                             modifier = Modifier.weight(1.5f),
-                            singleLine = true
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         OutlinedTextField(
@@ -415,7 +534,8 @@ fun CreateDonationDialog(
                             label = { Text("Qtd") },
                             placeholder = { Text("10 un") },
                             modifier = Modifier.weight(1f),
-                            singleLine = true
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
                         )
                         if (items.size > 1) {
                             IconButton(onClick = { items = items.toMutableList().also { it.removeAt(index) } }) {
@@ -436,7 +556,8 @@ fun CreateDonationDialog(
                     value = title, onValueChange = { title = it },
                     label = { Text("Título (opcional)") },
                     placeholder = { Text("Ex: Doação de Padaria") },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
@@ -445,21 +566,27 @@ fun CreateDonationDialog(
                     placeholder = { Text("Selecione a data") },
                     trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
                     interactionSource = remember { MutableInteractionSource() }.also { src ->
                         LaunchedEffect(src) { src.interactions.collect { if (it is PressInteraction.Release) showDatePicker = true } }
                     }
                 )
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Cancelar", color = Color.Gray) }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = { onSave(validItems, title, "", expiryDate) },
                         enabled = canSave,
-                        colors = ButtonDefaults.buttonColors(containerColor = warmPrimaryColor)
+                        colors = ButtonDefaults.buttonColors(containerColor = warmPrimaryColor),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        if (isSaving) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
-                        else Text("Publicar")
+                        if (isSaving) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        else {
+                            Icon(Icons.Default.Publish, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Publicar")
+                        }
                     }
                 }
             }
