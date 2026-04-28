@@ -12,11 +12,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -31,6 +31,7 @@ import androidx.navigation.NavController
 import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.Donation
 import br.unasp.boacao.domain.model.DonationStatus
+import br.unasp.boacao.presentation.components.LocalFilterIconCoordinator
 import br.unasp.boacao.presentation.components.QrScannerDialog
 import br.unasp.boacao.util.QrCodeUtils
 
@@ -61,48 +62,16 @@ fun VolunteerDashboardScreen(navController: NavController) {
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            // Header with gradient
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(warmPrimaryColor, Color(0xFFFF8A50))
-                        )
-                    )
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.DirectionsBike, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            "Olá, ${state.volunteerName}!",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
-                        Text(
-                            "${state.availableDonations.size} doações disponíveis",
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-            }
-
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.White,
-                contentColor = warmPrimaryColor
+                contentColor = warmPrimaryColor,
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                        color = warmPrimaryColor
+                    )
+                }
             ) {
                 Tab(
                     selected = selectedTab == 0,
@@ -241,6 +210,7 @@ fun VolunteerDashboardScreen(navController: NavController) {
 
     donationToConfirm?.let { donation ->
         ConfirmPickupDialog(
+            isLoading = state.isLoading,
             onDismiss = { donationToConfirm = null },
             onConfirm = { pin ->
                 viewModel.confirmPickup(context, donation.id, pin) { success, errorMsg ->
@@ -259,11 +229,12 @@ fun VolunteerDashboardScreen(navController: NavController) {
     donationPickedUp?.let { donation ->
         SelectNgoSheet(
             ngos = state.ngos,
+            isLoading = state.isLoading,
             onSelect = { ngo ->
                 viewModel.assignNgo(donation.id, ngo) { success ->
                     if (success) Toast.makeText(context, "ONG ${ngo.name} notificada!", Toast.LENGTH_SHORT).show()
+                    donationPickedUp = null
                 }
-                donationPickedUp = null
             },
             onDismiss = { donationPickedUp = null }
         )
@@ -274,6 +245,7 @@ fun VolunteerDashboardScreen(navController: NavController) {
 @Composable
 fun SelectNgoSheet(
     ngos: List<NgoInfo>,
+    isLoading: Boolean,
     onSelect: (NgoInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -295,7 +267,11 @@ fun SelectNgoSheet(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (ngos.isEmpty()) {
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF1976D2))
+                }
+            } else if (ngos.isEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
@@ -309,7 +285,7 @@ fun SelectNgoSheet(
             } else {
                 ngos.forEach { ngo ->
                     Card(
-                        onClick = { onSelect(ngo) },
+                        onClick = { if (!isLoading) onSelect(ngo) },
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
                         elevation = CardDefaults.cardElevation(1.dp)
@@ -333,7 +309,11 @@ fun SelectNgoSheet(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                enabled = !isLoading
+            ) {
                 Text("Ir sem selecionar ONG", color = Color.Gray, fontSize = 13.sp)
             }
         }
@@ -580,7 +560,7 @@ fun ClaimDonationDialog(donation: Donation, isLoading: Boolean, onDismiss: () ->
 }
 
 @Composable
-fun ConfirmPickupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+fun ConfirmPickupDialog(isLoading: Boolean, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var pin by remember { mutableStateOf("") }
     var showQrScanner by remember { mutableStateOf(false) }
     val greenColor = Color(0xFF4CAF50)
@@ -629,7 +609,8 @@ fun ConfirmPickupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
                     onClick = { showQrScanner = true },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isLoading
                 ) {
                     Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
@@ -650,17 +631,21 @@ fun ConfirmPickupDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
                     textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center, fontSize = 28.sp, letterSpacing = 8.sp),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(0.6f),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isLoading
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = onDismiss) { Text("Cancelar") }
+                    TextButton(onClick = onDismiss, enabled = !isLoading) { Text("Cancelar") }
                     Button(
                         onClick = { onConfirm(pin) },
-                        enabled = pin.length == 4,
+                        enabled = pin.length == 4 && !isLoading,
                         colors = ButtonDefaults.buttonColors(containerColor = greenColor),
                         shape = RoundedCornerShape(12.dp)
-                    ) { Text("Validar") }
+                    ) {
+                        if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text("Validar")
+                    }
                 }
             }
         }

@@ -52,10 +52,6 @@ class VolunteerViewModel(
         }
     }
 
-    /**
-     * Real-time listeners: when a donor creates a donation, volunteers see it immediately.
-     * When status changes (another volunteer claims it), it disappears from the list.
-     */
     private fun startRealtimeListeners() {
         val userId = auth.currentUser?.uid ?: return
         _uiState.value = _uiState.value.copy(isLoading = true)
@@ -96,35 +92,13 @@ class VolunteerViewModel(
         }
     }
 
-    fun loadData() {
-        val userId = auth.currentUser?.uid ?: return
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            val availableResult = repository.getAvailableDonations()
-            val deliveriesResult = repository.getMyDeliveries(userId)
-            if (availableResult.isSuccess && deliveriesResult.isSuccess) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    availableDonations = availableResult.getOrDefault(emptyList()),
-                    myDeliveries = deliveriesResult.getOrDefault(emptyList())
-                )
-            } else {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = "Erro ao carregar dados")
-            }
-        }
-    }
-
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
 
-    /**
-     * Claims a donation with internet check + concurrency protection.
-     * Uses Firestore transaction to prevent two volunteers from claiming the same donation.
-     */
     fun claimDonation(context: Context, donation: Donation, onResult: (Boolean, String?) -> Unit) {
         if (!NetworkUtils.isOnline(context)) {
-            onResult(false, "Sem conexão com a internet. Verifique sua rede e tente novamente.")
+            onResult(false, "Sem conexão com a internet.")
             return
         }
         val userId = auth.currentUser?.uid ?: return
@@ -137,18 +111,15 @@ class VolunteerViewModel(
                     onResult(true, null)
                 }
                 .onFailure { e ->
-                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
                     onResult(false, e.message)
                 }
         }
     }
 
-    /**
-     * Confirms pickup with internet check + transaction-based PIN validation.
-     */
     fun confirmPickup(context: Context, donationId: String, pin: String, onComplete: (Boolean, String?) -> Unit) {
         if (!NetworkUtils.isOnline(context)) {
-            onComplete(false, "Sem conexão com a internet. Verifique sua rede e tente novamente.")
+            onComplete(false, "Sem conexão com a internet.")
             return
         }
         val userId = auth.currentUser?.uid ?: return
@@ -160,7 +131,7 @@ class VolunteerViewModel(
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 onComplete(true, null)
             } else {
-                _uiState.value = _uiState.value.copy(isLoading = false)
+                _uiState.value = _uiState.value.copy(isLoading = false, error = result.exceptionOrNull()?.message)
                 onComplete(false, result.exceptionOrNull()?.message)
             }
         }
@@ -168,9 +139,16 @@ class VolunteerViewModel(
 
     fun assignNgo(donationId: String, ngo: NgoInfo, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
             repository.assignNgo(donationId, ngo.id, ngo.name)
-                .onSuccess { onComplete(true) }
-                .onFailure { onComplete(false) }
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    onComplete(true)
+                }
+                .onFailure {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    onComplete(false)
+                }
         }
     }
 }

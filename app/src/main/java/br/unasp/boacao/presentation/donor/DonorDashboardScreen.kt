@@ -4,16 +4,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -37,6 +36,11 @@ import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.Donation
 import br.unasp.boacao.domain.model.DonationItem
 import br.unasp.boacao.domain.model.DonationStatus
+import br.unasp.boacao.presentation.components.FilterBottomSheet
+import br.unasp.boacao.presentation.components.FilterChipOption
+import br.unasp.boacao.presentation.components.FilterChipsRow
+import br.unasp.boacao.presentation.components.FilterSection
+import br.unasp.boacao.presentation.components.LocalFilterIconCoordinator
 import br.unasp.boacao.util.QrCodeUtils
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -51,7 +55,21 @@ fun DonorDashboardScreen(navController: NavController) {
     val state by viewModel.uiState.collectAsState()
     val filtered = viewModel.filteredDonations()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
     val warmPrimaryColor = Color(0xFFF06A38)
+
+    val filterCoordinator = LocalFilterIconCoordinator.current
+    val hasActiveFilters = state.statusFilter != DonorStatusFilter.ALL || state.timeFilter != DonorTimeFilter.ALL
+
+    LaunchedEffect(hasActiveFilters) {
+        filterCoordinator?.register(hasActiveFilters) {
+            showFilterSheet = true
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { filterCoordinator?.unregister() }
+    }
 
     var showPeriodPicker by remember { mutableStateOf(false) }
     val startPickerState = rememberDatePickerState()
@@ -77,6 +95,45 @@ fun DonorDashboardScreen(navController: NavController) {
             },
             dismissButton = { TextButton(onClick = { showPeriodPicker = false; periodStep = 0 }) { Text("Cancelar") } }
         ) { DatePicker(state = if (periodStep == 0) startPickerState else endPickerState) }
+    }
+
+    if (showFilterSheet) {
+        FilterBottomSheet(
+            onDismiss = { showFilterSheet = false },
+            onClear = {
+                viewModel.setStatusFilter(DonorStatusFilter.ALL)
+                viewModel.setTimeFilter(DonorTimeFilter.ALL)
+            }
+        ) {
+            FilterSection(title = "Status da Doação", icon = Icons.Default.Info) {
+                FilterChipsRow(
+                    options = listOf(
+                        FilterChipOption(DonorStatusFilter.ALL.name, "Todos"),
+                        FilterChipOption(DonorStatusFilter.AVAILABLE.name, "Aguardando"),
+                        FilterChipOption(DonorStatusFilter.IN_PROGRESS.name, "Em trânsito"),
+                        FilterChipOption(DonorStatusFilter.DELIVERED.name, "Entregue")
+                    ),
+                    selectedKey = state.statusFilter.name,
+                    onSelect = { viewModel.setStatusFilter(DonorStatusFilter.valueOf(it)) }
+                )
+            }
+            FilterSection(title = "Período de Criação", icon = Icons.Default.DateRange) {
+                FilterChipsRow(
+                    options = listOf(
+                        FilterChipOption(DonorTimeFilter.ALL.name, "Tudo"),
+                        FilterChipOption(DonorTimeFilter.TODAY.name, "Hoje"),
+                        FilterChipOption(DonorTimeFilter.WEEK.name, "Semana"),
+                        FilterChipOption(DonorTimeFilter.MONTH.name, "Mês"),
+                        FilterChipOption(DonorTimeFilter.PERIOD.name, if (state.timeFilter == DonorTimeFilter.PERIOD && state.periodStart.isNotBlank()) "${state.periodStart} - ${state.periodEnd}" else "Personalizado")
+                    ),
+                    selectedKey = state.timeFilter.name,
+                    onSelect = {
+                        if (it == DonorTimeFilter.PERIOD.name) showPeriodPicker = true
+                        else viewModel.setTimeFilter(DonorTimeFilter.valueOf(it))
+                    }
+                )
+            }
+        }
     }
 
     val animatedPoints by animateIntAsState(targetValue = state.donorPoints, label = "points")
@@ -141,77 +198,6 @@ fun DonorDashboardScreen(navController: NavController) {
                 }
             }
 
-            // Status filter chips
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                DonorStatusFilter.values().forEach { f ->
-                    FilterChip(
-                        selected = state.statusFilter == f,
-                        onClick = { viewModel.setStatusFilter(f) },
-                        label = {
-                            Text(when (f) {
-                                DonorStatusFilter.ALL -> "Todos"
-                                DonorStatusFilter.AVAILABLE -> "Aguardando"
-                                DonorStatusFilter.IN_PROGRESS -> "Em trânsito"
-                                DonorStatusFilter.DELIVERED -> "Entregue"
-                            }, fontSize = 12.sp)
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = warmPrimaryColor.copy(alpha = 0.15f),
-                            selectedLabelColor = warmPrimaryColor
-                        )
-                    )
-                }
-            }
-
-            // Time filter chips
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                DonorTimeFilter.values().filter { it != DonorTimeFilter.PERIOD }.forEach { f ->
-                    FilterChip(
-                        selected = state.timeFilter == f,
-                        onClick = { viewModel.setTimeFilter(f) },
-                        label = {
-                            Text(when (f) {
-                                DonorTimeFilter.ALL -> "Todo período"
-                                DonorTimeFilter.TODAY -> "Hoje"
-                                DonorTimeFilter.WEEK -> "Semana"
-                                DonorTimeFilter.MONTH -> "Mês"
-                                DonorTimeFilter.PERIOD -> ""
-                            }, fontSize = 12.sp)
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = warmPrimaryColor.copy(alpha = 0.15f),
-                            selectedLabelColor = warmPrimaryColor
-                        )
-                    )
-                }
-                FilterChip(
-                    selected = state.timeFilter == DonorTimeFilter.PERIOD,
-                    onClick = { showPeriodPicker = true },
-                    label = {
-                        Text(
-                            if (state.timeFilter == DonorTimeFilter.PERIOD && state.periodStart.isNotBlank())
-                                "${state.periodStart} → ${state.periodEnd}"
-                            else "Período",
-                            fontSize = 12.sp
-                        )
-                    },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(14.dp)) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = warmPrimaryColor.copy(alpha = 0.15f),
-                        selectedLabelColor = warmPrimaryColor
-                    )
-                )
-            }
-
             Box(modifier = Modifier.weight(1f)) {
                 if (state.isLoading && state.donations.isEmpty()) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = warmPrimaryColor)
@@ -239,6 +225,7 @@ fun DonorDashboardScreen(navController: NavController) {
                         items(filtered, key = { it.id }) { donation ->
                             DonationCard(
                                 donation = donation,
+                                isLoading = state.isLoading,
                                 onCancel = if (donation.status == DonationStatus.AVAILABLE) {
                                     { viewModel.cancelDonation(donation.id) }
                                 } else null
@@ -263,7 +250,7 @@ fun DonorDashboardScreen(navController: NavController) {
 }
 
 @Composable
-fun DonationCard(donation: Donation, onCancel: (() -> Unit)? = null) {
+fun DonationCard(donation: Donation, isLoading: Boolean, onCancel: (() -> Unit)? = null) {
     val warmColor = Color(0xFFF06A38)
     var expanded by remember { mutableStateOf(false) }
     var showCancelDialog by remember { mutableStateOf(false) }
@@ -289,18 +276,22 @@ fun DonationCard(donation: Donation, onCancel: (() -> Unit)? = null) {
 
     if (showCancelDialog) {
         AlertDialog(
-            onDismissRequest = { showCancelDialog = false },
+            onDismissRequest = { if (!isLoading) showCancelDialog = false },
             icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red) },
             title = { Text("Cancelar doação?") },
             text = { Text("Esta ação é irreversível. A doação será removida.") },
             confirmButton = {
                 Button(
-                    onClick = { showCancelDialog = false; onCancel?.invoke() },
+                    onClick = { onCancel?.invoke(); showCancelDialog = false },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Cancelar doação") }
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    else Text("Cancelar doação")
+                }
             },
-            dismissButton = { TextButton(onClick = { showCancelDialog = false }) { Text("Manter") } },
+            dismissButton = { TextButton(onClick = { showCancelDialog = false }, enabled = !isLoading) { Text("Manter") } },
             shape = RoundedCornerShape(20.dp)
         )
     }
@@ -433,7 +424,8 @@ fun DonationCard(donation: Donation, onCancel: (() -> Unit)? = null) {
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f)),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = !isLoading
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -490,7 +482,7 @@ fun CreateDonationDialog(
     val validItems = items.filter { it.name.isNotBlank() }
     val canSave = !isSaving && validItems.isNotEmpty() && expiryDate.isNotBlank()
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = { if (!isSaving) onDismiss() }) {
         Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(24.dp).verticalScroll(scrollState)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -525,7 +517,8 @@ fun CreateDonationDialog(
                             placeholder = { Text("Ex: Pão Francês") },
                             modifier = Modifier.weight(1.5f),
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = !isSaving
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         OutlinedTextField(
@@ -535,17 +528,18 @@ fun CreateDonationDialog(
                             placeholder = { Text("10 un") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = !isSaving
                         )
                         if (items.size > 1) {
-                            IconButton(onClick = { items = items.toMutableList().also { it.removeAt(index) } }) {
+                            IconButton(onClick = { items = items.toMutableList().also { it.removeAt(index) } }, enabled = !isSaving) {
                                 Icon(Icons.Default.Remove, contentDescription = "Remover", tint = Color.Red)
                             }
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                 }
-                TextButton(onClick = { items = items + DonationItem() }, modifier = Modifier.align(Alignment.Start)) {
+                TextButton(onClick = { items = items + DonationItem() }, modifier = Modifier.align(Alignment.Start), enabled = !isSaving) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Adicionar Item", fontSize = 13.sp)
@@ -557,7 +551,8 @@ fun CreateDonationDialog(
                     label = { Text("Título (opcional)") },
                     placeholder = { Text("Ex: Doação de Padaria") },
                     modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isSaving
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
@@ -567,8 +562,9 @@ fun CreateDonationDialog(
                     trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
+                    enabled = !isSaving,
                     interactionSource = remember { MutableInteractionSource() }.also { src ->
-                        LaunchedEffect(src) { src.interactions.collect { if (it is PressInteraction.Release) showDatePicker = true } }
+                        LaunchedEffect(src) { src.interactions.collect { if (it is PressInteraction.Release && !isSaving) showDatePicker = true } }
                     }
                 )
                 Spacer(modifier = Modifier.height(24.dp))

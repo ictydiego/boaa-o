@@ -77,6 +77,8 @@ class DonorViewModel(
                 if (snapshot != null) {
                     val list = snapshot.documents.mapNotNull { it.toObject(Donation::class.java) }
                     _uiState.value = _uiState.value.copy(isLoading = false, donations = list)
+                } else {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
                 }
             }
     }
@@ -109,6 +111,7 @@ class DonorViewModel(
             )
             repository.createDonation(newDonation)
                 .onSuccess {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
                     loadDonorProfile()
                     onComplete()
                 }
@@ -121,10 +124,18 @@ class DonorViewModel(
     fun cancelDonation(donationId: String) {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
             repository.cancelDonation(donationId, userId)
-                .onSuccess { loadDonorProfile() }
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    loadDonorProfile()
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
+                }
         }
     }
+
     fun setStatusFilter(f: DonorStatusFilter) { _uiState.value = _uiState.value.copy(statusFilter = f) }
     fun setTimeFilter(f: DonorTimeFilter) { _uiState.value = _uiState.value.copy(timeFilter = f) }
     fun setPeriod(start: String, end: String) {
@@ -174,6 +185,10 @@ class DonorViewModel(
     }
 
     private fun SimpleDateFormat.parseOrNull(s: String): Date? = try { if (s.isBlank()) null else parse(s) } catch (e: Exception) { null }
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
 }
 
 class DonorViewModelFactory(private val repository: DonorRepository) : ViewModelProvider.Factory {

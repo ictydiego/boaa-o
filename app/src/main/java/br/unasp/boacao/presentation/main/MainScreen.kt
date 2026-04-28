@@ -33,6 +33,8 @@ import androidx.navigation.compose.rememberNavController
 import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.UserRole
 import br.unasp.boacao.presentation.beneficiary.BeneficiaryDashboardScreen
+import br.unasp.boacao.presentation.components.FilterIconCoordinator
+import br.unasp.boacao.presentation.components.LocalFilterIconCoordinator
 import br.unasp.boacao.presentation.donor.DonorDashboardScreen
 import br.unasp.boacao.presentation.giftcard.GiftCardScreen
 import br.unasp.boacao.presentation.navigation.InternalRoutes
@@ -64,6 +66,7 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
     val navBackStackEntry by nestedNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val warmPrimaryColor = Color(0xFFF06A38)
+    val filterCoordinator = remember { FilterIconCoordinator() }
 
     // Request notification permission (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -230,41 +233,62 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
             }
         }
     ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Boa Ação", color = Color.White, fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = warmPrimaryColor),
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color.White)
+        CompositionLocalProvider(LocalFilterIconCoordinator provides filterCoordinator) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Boa Ação", color = Color.White, fontWeight = FontWeight.Bold) },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = warmPrimaryColor),
+                        navigationIcon = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color.White)
+                            }
+                        },
+                        actions = {
+                            if (filterCoordinator.isVisible) {
+                                IconButton(onClick = { filterCoordinator.trigger() }) {
+                                    BadgedBox(
+                                        badge = {
+                                            if (filterCoordinator.hasActiveFilters) {
+                                                Badge(containerColor = Color.Yellow)
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.FilterList,
+                                            contentDescription = "Filtros",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
+                            }
                         }
+                    )
+                }
+            ) { paddingValues ->
+                if (!state.isLoading) {
+                    NavHost(
+                        navController = nestedNavController,
+                        startDestination = startDestination,
+                        modifier = Modifier.padding(paddingValues)
+                    ) {
+                        composable(InternalRoutes.DONOR_HOME) { DonorDashboardScreen(nestedNavController) }
+                        composable(InternalRoutes.DONOR_PROFILE) { ProfileScreen(nestedNavController) }
+                        composable(InternalRoutes.DONOR_RANKING) { RankingScreen(nestedNavController, UserRole.DONOR) }
+
+                        composable(InternalRoutes.VOLUNTEER_HOME) { VolunteerDashboardScreen(nestedNavController) }
+                        composable(InternalRoutes.VOLUNTEER_MAP) { VolunteerMapScreen(nestedNavController) }
+                        composable(InternalRoutes.VOLUNTEER_HISTORY) { VolunteerHistoryScreen(nestedNavController) }
+                        composable(InternalRoutes.VOLUNTEER_POINTS) { PointsScreen(nestedNavController) }
+                        composable(InternalRoutes.VOLUNTEER_GIFTCARDS) { GiftCardScreen(nestedNavController) }
+                        composable(InternalRoutes.VOLUNTEER_RANKING) { RankingScreen(nestedNavController, UserRole.VOLUNTEER) }
+                        composable(InternalRoutes.VOLUNTEER_PROFILE) { ProfileScreen(nestedNavController) }
+
+                        composable(InternalRoutes.BENEFICIARY_HOME) { BeneficiaryDashboardScreen(nestedNavController) }
+                        composable(InternalRoutes.BENEFICIARY_HISTORY) { BeneficiaryHistoryScreen(nestedNavController) }
+                        composable(InternalRoutes.BENEFICIARY_RANKING) { RankingScreen(nestedNavController, UserRole.BENEFICIARY) }
+                        composable(InternalRoutes.BENEFICIARY_PROFILE) { ProfileScreen(nestedNavController) }
                     }
-                )
-            }
-        ) { paddingValues ->
-            if (!state.isLoading) {
-                NavHost(
-                    navController = nestedNavController,
-                    startDestination = startDestination,
-                    modifier = Modifier.padding(paddingValues)
-                ) {
-                    composable(InternalRoutes.DONOR_HOME) { DonorDashboardScreen(nestedNavController) }
-                    composable(InternalRoutes.DONOR_PROFILE) { ProfileScreen(nestedNavController) }
-                    composable(InternalRoutes.DONOR_RANKING) { RankingScreen(nestedNavController, UserRole.DONOR) }
-
-                    composable(InternalRoutes.VOLUNTEER_HOME) { VolunteerDashboardScreen(nestedNavController) }
-                    composable(InternalRoutes.VOLUNTEER_MAP) { VolunteerMapScreen(nestedNavController) }
-                    composable(InternalRoutes.VOLUNTEER_HISTORY) { VolunteerHistoryScreen(nestedNavController) }
-                    composable(InternalRoutes.VOLUNTEER_POINTS) { PointsScreen(nestedNavController) }
-                    composable(InternalRoutes.VOLUNTEER_GIFTCARDS) { GiftCardScreen(nestedNavController) }
-                    composable(InternalRoutes.VOLUNTEER_RANKING) { RankingScreen(nestedNavController, UserRole.VOLUNTEER) }
-                    composable(InternalRoutes.VOLUNTEER_PROFILE) { ProfileScreen(nestedNavController) }
-
-                    composable(InternalRoutes.BENEFICIARY_HOME) { BeneficiaryDashboardScreen(nestedNavController) }
-                    composable(InternalRoutes.BENEFICIARY_HISTORY) { BeneficiaryHistoryScreen(nestedNavController) }
-                    composable(InternalRoutes.BENEFICIARY_RANKING) { RankingScreen(nestedNavController, UserRole.BENEFICIARY) }
-                    composable(InternalRoutes.BENEFICIARY_PROFILE) { ProfileScreen(nestedNavController) }
                 }
             }
         }
