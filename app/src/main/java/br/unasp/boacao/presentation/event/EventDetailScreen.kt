@@ -3,6 +3,7 @@ package br.unasp.boacao.presentation.event
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,16 +12,29 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,16 +44,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import br.unasp.boacao.BoaAcaoApplication
-import br.unasp.boacao.domain.model.AttendanceStatus
 import br.unasp.boacao.domain.model.EventStatus
+import br.unasp.boacao.presentation.components.AttendanceStatusChip
+import br.unasp.boacao.presentation.components.AttendeeRow
+import br.unasp.boacao.presentation.components.EventStatusChip
+import br.unasp.boacao.presentation.components.EventWarmPrimary
+import br.unasp.boacao.presentation.components.HighlightCard
 import br.unasp.boacao.presentation.navigation.InternalRoutes
+import br.unasp.boacao.util.FormatUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventDetailScreen(navController: NavController, eventId: String) {
     val context = LocalContext.current
@@ -51,111 +72,168 @@ fun EventDetailScreen(navController: NavController, eventId: String) {
     )
     val state by viewModel.uiState.collectAsState()
     val df = SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
-    val warmPrimary = Color(0xFFF06A38)
 
-    if (state.isLoading) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    val event = state.event
-    if (event == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(state.error ?: "Evento não encontrado")
-        }
-        return
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Text(event.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
-            Text("Status: ${labelFor(event.status)}", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(4.dp))
-            Text("Data: ${df.format(Date(event.startAt))}", style = MaterialTheme.typography.bodyMedium)
-            if (event.endAt > 0) {
-                Text("Término: ${df.format(Date(event.endAt))}", style = MaterialTheme.typography.bodyMedium)
-            }
-            Text("Carga horária: ${event.workloadHours}h", style = MaterialTheme.typography.bodyMedium)
-            if (event.address.isNotBlank()) {
-                Text("Local: ${event.address}", style = MaterialTheme.typography.bodyMedium)
-            }
-            if (event.description.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(event.description, style = MaterialTheme.typography.bodyMedium)
-            }
-
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (event.status == EventStatus.PUBLISHED) {
-                    Button(onClick = { viewModel.setStatus(EventStatus.IN_PROGRESS) }) { Text("Iniciar") }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Detalhes do Evento", color = Color.White, fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = EventWarmPrimary),
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                    }
                 }
-                if (event.status == EventStatus.IN_PROGRESS) {
-                    Button(onClick = { viewModel.setStatus(EventStatus.FINISHED) }) { Text("Finalizar") }
-                }
-                if (event.status != EventStatus.FINISHED && event.status != EventStatus.CANCELLED) {
-                    OutlinedButton(onClick = { viewModel.setStatus(EventStatus.CANCELLED) }) { Text("Cancelar") }
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "Inscritos (${state.attendances.size})",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.height(8.dp))
-
-            if (state.attendances.isEmpty()) {
-                Text("Nenhum voluntário inscrito.", style = MaterialTheme.typography.bodyMedium)
-            } else {
+        },
+        floatingActionButton = {
+            val ev = state.event
+            if (ev != null && (ev.status == EventStatus.IN_PROGRESS || ev.status == EventStatus.PUBLISHED)) {
+                ExtendedFloatingActionButton(
+                    onClick = { navController.navigate("${InternalRoutes.BENEFICIARY_EVENT_SCANNER}/$eventId") },
+                    text = { Text("Escanear QR") },
+                    icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
+                    containerColor = EventWarmPrimary,
+                    contentColor = Color.White
+                )
+            }
+        }
+    ) { padding ->
+        when {
+            state.isLoading -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = EventWarmPrimary)
+                }
+            }
+            state.event == null -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Text(state.error ?: "Evento não encontrado")
+                }
+            }
+            else -> {
+                val event = state.event!!
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(state.attendances) { a ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(10.dp)) {
-                                Text(a.volunteerName, fontWeight = FontWeight.Bold)
-                                Text("CPF: ${a.volunteerDocument}", style = MaterialTheme.typography.bodySmall)
-                                Text("Status: ${labelFor(a.status)}", style = MaterialTheme.typography.bodySmall)
-                                if (a.performanceNote.isNotBlank()) {
-                                    Text("Obs: ${a.performanceNote}", style = MaterialTheme.typography.bodySmall)
+                    // Header card
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        event.title,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    EventStatusChip(event.status)
+                                }
+                                if (event.description.isNotBlank()) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(event.description, fontSize = 13.sp, color = Color.DarkGray)
                                 }
                             }
                         }
                     }
+
+                    // Info highlights
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            HighlightCard(
+                                title = "Data",
+                                value = df.format(Date(event.startAt)),
+                                icon = Icons.Default.CalendarToday,
+                                modifier = Modifier.weight(1f)
+                            )
+                            HighlightCard(
+                                title = "Carga horária",
+                                value = "${FormatUtils.formatHours(event.workloadHours)}h",
+                                icon = Icons.Default.AccessTime,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    if (event.address.isNotBlank()) {
+                        item {
+                            HighlightCard(
+                                title = "Local",
+                                value = event.address,
+                                icon = Icons.Default.LocationOn,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Status controls
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (event.status == EventStatus.PUBLISHED) {
+                                Button(
+                                    onClick = { viewModel.setStatus(EventStatus.IN_PROGRESS) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = EventWarmPrimary)
+                                ) { Text("Iniciar") }
+                            }
+                            if (event.status == EventStatus.IN_PROGRESS) {
+                                Button(
+                                    onClick = { viewModel.setStatus(EventStatus.FINISHED) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = EventWarmPrimary)
+                                ) { Text("Finalizar") }
+                            }
+                            if (event.status != EventStatus.FINISHED && event.status != EventStatus.CANCELLED) {
+                                OutlinedButton(onClick = { viewModel.setStatus(EventStatus.CANCELLED) }) {
+                                    Text("Cancelar evento")
+                                }
+                            }
+                        }
+                    }
+
+                    // Attendees header
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Group, contentDescription = null, tint = EventWarmPrimary)
+                            Spacer(Modifier.height(0.dp))
+                            Text(
+                                "  Inscritos (${state.attendances.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    if (state.attendances.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA))
+                            ) {
+                                Text(
+                                    "Nenhum voluntário inscrito ainda.",
+                                    modifier = Modifier.padding(16.dp),
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                    } else {
+                        items(state.attendances) { a ->
+                            AttendeeRow(
+                                name = a.volunteerName,
+                                document = a.volunteerDocument,
+                                statusChip = { AttendanceStatusChip(a.status) },
+                                note = a.performanceNote
+                            )
+                        }
+                    }
+
+                    // bottom spacer for FAB
+                    item { Spacer(Modifier.height(64.dp)) }
                 }
             }
         }
-
-        if (event.status == EventStatus.IN_PROGRESS || event.status == EventStatus.PUBLISHED) {
-            ExtendedFloatingActionButton(
-                onClick = {
-                    navController.navigate("${InternalRoutes.BENEFICIARY_EVENT_SCANNER}/$eventId")
-                },
-                text = { Text("Escanear QR") },
-                icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
-                containerColor = warmPrimary,
-                contentColor = Color.White,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
-            )
-        }
     }
-}
-
-private fun labelFor(status: EventStatus): String = when (status) {
-    EventStatus.PUBLISHED -> "Publicado"
-    EventStatus.IN_PROGRESS -> "Em andamento"
-    EventStatus.FINISHED -> "Finalizado"
-    EventStatus.CANCELLED -> "Cancelado"
-}
-
-private fun labelFor(status: AttendanceStatus): String = when (status) {
-    AttendanceStatus.SUBSCRIBED -> "Inscrito"
-    AttendanceStatus.CHECKED_IN -> "Check-in"
-    AttendanceStatus.CHECKED_OUT -> "Concluído"
-    AttendanceStatus.NO_SHOW -> "Não compareceu"
 }

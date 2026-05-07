@@ -48,7 +48,7 @@ class BoaAcaoApplication : Application() {
         giftCardRepository = GiftCardRepositoryImpl(firestore)
         rankingRepository = RankingRepositoryImpl(firestore)
         eventRepository = EventRepositoryImpl(firestore)
-        attendanceRepository = AttendanceRepositoryImpl(firestore)
+        attendanceRepository = AttendanceRepositoryImpl(firestore, pointsRepository)
 
         NotificationHelper.createNotificationChannel(this)
     }

@@ -21,7 +21,8 @@ interface AttendanceRepository {
 }
 
 class AttendanceRepositoryImpl(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val pointsRepository: PointsRepository? = null
 ) : AttendanceRepository {
 
     private fun col(eventId: String) =
@@ -126,6 +127,12 @@ class AttendanceRepositoryImpl(
                 certificateHash = hash
             )
         }.await()
+        // Award participation points (idempotency-light: relies on tx above already enforcing CHECKED_IN→CHECKED_OUT once)
+        pointsRepository?.addPoints(updated.volunteerId, EVENT_PARTICIPATION_POINTS, "Participação em evento")
         Result.success(updated)
     } catch (e: Exception) { Result.failure(e) }
+
+    companion object {
+        const val EVENT_PARTICIPATION_POINTS = 50
+    }
 }
