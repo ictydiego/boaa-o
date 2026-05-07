@@ -31,12 +31,14 @@ class EventListViewModel(
 
     private var profile: UserProfile? = null
 
-    init {
-        viewModelScope.launch { loadProfileThenObserve() }
-    }
+    init { start() }
 
-    private suspend fun loadProfileThenObserve() {
-        authRepository.getUserProfile().onSuccess { p ->
+    private fun start() {
+        viewModelScope.launch {
+            val p = authRepository.getUserProfile().getOrElse { err ->
+                _uiState.value = _uiState.value.copy(isLoading = false, error = err.message)
+                return@launch
+            }
             profile = p
             viewModelScope.launch {
                 attendanceRepository.observeMyAttendances(p.id).collect { mine ->
@@ -45,16 +47,12 @@ class EventListViewModel(
                     )
                 }
             }
-            viewModelScope.launch {
-                eventRepository.observePublishedEvents().collect { list ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        events = list.sortedBy { it.startAt }
-                    )
-                }
+            eventRepository.observePublishedEvents().collect { list ->
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    events = list.sortedBy { it.startAt }
+                )
             }
-        }.onFailure {
-            _uiState.value = _uiState.value.copy(isLoading = false, error = it.message)
         }
     }
 

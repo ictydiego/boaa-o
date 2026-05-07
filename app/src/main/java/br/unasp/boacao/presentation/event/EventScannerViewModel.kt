@@ -38,12 +38,6 @@ class EventScannerViewModel(
                 { err ->
                     val msg = err.message ?: "Erro"
                     if (msg.contains("Status inválido")) {
-                        // already checked in or beyond — try to surface checkout option
-                        viewModelScope.launch {
-                            attendanceRepository.checkIn(eventId, ticket) // no-op; we read state
-                            // fetch attendance via the ticket to know its current state
-                        }
-                        // simpler: branch on message and let user request checkout
                         _step.value = ScannerStep.AwaitingCheckout(ticket, "Voluntário")
                     } else {
                         _step.value = ScannerStep.Error(msg)
