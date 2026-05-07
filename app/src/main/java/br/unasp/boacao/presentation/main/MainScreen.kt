@@ -320,9 +320,12 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
                             val id = backStack.arguments?.getString("eventId").orEmpty()
                             EventDetailScreen(nestedNavController, id)
                         }
-                        composable("${InternalRoutes.BENEFICIARY_EVENT_SCANNER}/{eventId}") { backStack ->
+                        composable("${InternalRoutes.BENEFICIARY_EVENT_SCANNER}/{eventId}/{mode}") { backStack ->
                             val id = backStack.arguments?.getString("eventId").orEmpty()
-                            EventScannerScreen(nestedNavController, id)
+                            val modeStr = backStack.arguments?.getString("mode").orEmpty()
+                            val mode = runCatching { br.unasp.boacao.presentation.event.ScannerMode.valueOf(modeStr) }
+                                .getOrDefault(br.unasp.boacao.presentation.event.ScannerMode.CHECKIN)
+                            EventScannerScreen(nestedNavController, id, mode)
                         }
                         composable(InternalRoutes.BENEFICIARY_SIGNATURE) { OngSignatureScreen(nestedNavController) }
                     }

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,18 +87,7 @@ fun EventDetailScreen(navController: NavController, eventId: String) {
                 }
             )
         },
-        floatingActionButton = {
-            val ev = state.event
-            if (ev != null && (ev.status == EventStatus.IN_PROGRESS || ev.status == EventStatus.PUBLISHED)) {
-                ExtendedFloatingActionButton(
-                    onClick = { navController.navigate("${InternalRoutes.BENEFICIARY_EVENT_SCANNER}/$eventId") },
-                    text = { Text("Escanear QR") },
-                    icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
-                    containerColor = EventWarmPrimary,
-                    contentColor = Color.White
-                )
-            }
-        }
+        floatingActionButton = { /* moved into content for two distinct buttons */ }
     ) { padding ->
         when {
             state.isLoading -> {
@@ -188,6 +179,42 @@ fun EventDetailScreen(navController: NavController, eventId: String) {
                             if (event.status != EventStatus.FINISHED && event.status != EventStatus.CANCELLED) {
                                 OutlinedButton(onClick = { viewModel.setStatus(EventStatus.CANCELLED) }) {
                                     Text("Cancelar evento")
+                                }
+                            }
+                        }
+                    }
+
+                    // Check-in / Check-out (only when IN_PROGRESS)
+                    if (event.status == EventStatus.IN_PROGRESS) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = EventWarmPrimary.copy(alpha = 0.08f)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("Registrar presença", fontWeight = FontWeight.Bold, color = EventWarmPrimary)
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = { navController.navigate("${InternalRoutes.BENEFICIARY_EVENT_SCANNER}/$eventId/CHECKIN") },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(containerColor = EventWarmPrimary)
+                                        ) {
+                                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Check-in")
+                                        }
+                                        OutlinedButton(
+                                            onClick = { navController.navigate("${InternalRoutes.BENEFICIARY_EVENT_SCANNER}/$eventId/CHECKOUT") },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Check-out")
+                                        }
+                                    }
                                 }
                             }
                         }

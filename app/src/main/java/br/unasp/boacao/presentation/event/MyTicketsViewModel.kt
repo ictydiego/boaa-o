@@ -29,21 +29,14 @@ class MyTicketsViewModel(
     private val _uiState = MutableStateFlow(MyTicketsUiState())
     val uiState = _uiState.asStateFlow()
 
-    private val eventCache = mutableMapOf<String, Event>()
-
     init {
         viewModelScope.launch {
             authRepository.getUserProfile().onSuccess { profile ->
                 attendanceRepository.observeMyAttendances(profile.id).collect { list ->
+                    // Fetch each event fresh so cancellations propagate when attendance flow emits.
                     val rows = list.map { att ->
-                        val cached = eventCache[att.eventId]
-                        if (cached != null) {
-                            TicketRow(att, cached)
-                        } else {
-                            val fetched = eventRepository.getEvent(att.eventId).getOrNull()
-                            if (fetched != null) eventCache[att.eventId] = fetched
-                            TicketRow(att, fetched)
-                        }
+                        val fetched = eventRepository.getEvent(att.eventId).getOrNull()
+                        TicketRow(att, fetched)
                     }.sortedByDescending { it.event?.startAt ?: 0L }
                     _uiState.value = MyTicketsUiState(isLoading = false, rows = rows)
                 }

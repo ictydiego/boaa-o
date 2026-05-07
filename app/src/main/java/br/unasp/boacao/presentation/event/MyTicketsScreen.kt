@@ -43,9 +43,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.AttendanceStatus
+import br.unasp.boacao.domain.model.EventStatus
 import br.unasp.boacao.presentation.components.AttendanceStatusChip
 import br.unasp.boacao.presentation.components.EventCard
 import br.unasp.boacao.presentation.components.EventWarmPrimary
+import br.unasp.boacao.presentation.components.StatusChip
 import br.unasp.boacao.presentation.navigation.InternalRoutes
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,16 +107,29 @@ fun MyTicketsScreen(navController: NavController) {
                     ) {
                         items(state.rows) { row ->
                             val a = row.attendance
+                            val eventCancelled = row.event?.status == EventStatus.CANCELLED
                             EventCard(
                                 title = row.event?.title ?: "Evento",
                                 subtitle = row.event?.ngoName ?: "",
                                 startAt = row.event?.startAt ?: 0L,
                                 workloadHours = row.event?.workloadHours ?: 0.0,
                                 address = row.event?.address ?: "",
-                                statusChip = { AttendanceStatusChip(a.status) },
+                                statusChip = {
+                                    if (eventCancelled) StatusChip("Evento cancelado", Color(0xFFC62828))
+                                    else AttendanceStatusChip(a.status)
+                                },
                                 trailing = {
-                                    when (a.status) {
-                                        AttendanceStatus.SUBSCRIBED, AttendanceStatus.CHECKED_IN -> {
+                                    when {
+                                        eventCancelled -> {
+                                            Text(
+                                                "Este evento foi cancelado pela ONG.",
+                                                color = Color(0xFFC62828),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                        a.status == AttendanceStatus.SUBSCRIBED ||
+                                        a.status == AttendanceStatus.CHECKED_IN -> {
                                             Button(
                                                 onClick = {
                                                     navController.navigate("${InternalRoutes.VOLUNTEER_TICKET_QR}/${a.ticketCode}")
@@ -127,7 +142,7 @@ fun MyTicketsScreen(navController: NavController) {
                                                 Text("Apresentar QR")
                                             }
                                         }
-                                        AttendanceStatus.CHECKED_OUT -> {
+                                        a.status == AttendanceStatus.CHECKED_OUT -> {
                                             OutlinedButton(
                                                 onClick = { navController.navigate(InternalRoutes.VOLUNTEER_CERTIFICATES) },
                                                 modifier = Modifier.fillMaxWidth()
@@ -137,7 +152,7 @@ fun MyTicketsScreen(navController: NavController) {
                                                 Text("Ver Certificado")
                                             }
                                         }
-                                        AttendanceStatus.NO_SHOW -> {
+                                        a.status == AttendanceStatus.NO_SHOW -> {
                                             Text(
                                                 "Não compareceu",
                                                 color = Color(0xFFC62828),
