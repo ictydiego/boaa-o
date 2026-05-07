@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,6 +33,7 @@ import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.Donation
 import br.unasp.boacao.domain.model.DonationItem
 import br.unasp.boacao.presentation.components.QrScannerDialog
+import br.unasp.boacao.presentation.navigation.InternalRoutes
 import br.unasp.boacao.util.ImageUtils
 
 @Composable
@@ -70,6 +72,31 @@ fun BeneficiaryDashboardScreen(navController: NavController) {
                     modifier = Modifier.padding(16.dp),
                     textAlign = TextAlign.Center
                 )
+            }
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = warmPrimaryColor.copy(alpha = 0.10f),
+                onClick = { navController.navigate(InternalRoutes.BENEFICIARY_EVENTS) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Event, contentDescription = null, tint = warmPrimaryColor)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Gerenciar Eventos", fontWeight = FontWeight.Bold, color = warmPrimaryColor)
+                        Text(
+                            "Crie eventos, faça check-in/out e emita certificados",
+                            fontSize = 12.sp, color = Color.DarkGray
+                        )
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = warmPrimaryColor)
+                }
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
