@@ -222,9 +222,12 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
                         onClick = {
                             scope.launch { drawerState.close() }
                             nestedNavController.navigate(item.route) {
-                                popUpTo(startDestination) { saveState = true }
+                                popUpTo(startDestination) {
+                                    saveState = false
+                                    inclusive = false
+                                }
                                 launchSingleTop = true
-                                restoreState = true
+                                restoreState = false
                             }
                         },
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)

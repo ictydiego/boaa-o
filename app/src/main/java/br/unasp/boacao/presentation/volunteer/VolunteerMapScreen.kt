@@ -23,6 +23,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.Donation
+import br.unasp.boacao.presentation.components.FilterBottomSheet
+import br.unasp.boacao.presentation.components.FilterSection
+import br.unasp.boacao.presentation.components.LocalFilterIconCoordinator
 import br.unasp.boacao.util.LocationUtils
 import br.unasp.boacao.util.MarkerUtils
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -53,6 +56,15 @@ fun VolunteerMapScreen(
     val locationPermission = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
     var selectedDonation by remember { mutableStateOf<MapDonation?>(null) }
     var selectedNgo by remember { mutableStateOf<NgoLocation?>(null) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+
+    // Register filter icon in global TopAppBar
+    val filterCoordinator = LocalFilterIconCoordinator.current
+    DisposableEffect(filterCoordinator, state.mapFilter, state.filterRadiusKm) {
+        val hasActive = state.mapFilter != MapFilter.ALL || state.filterRadiusKm != 50f
+        filterCoordinator?.register(hasActive = hasActive) { showFilterSheet = !showFilterSheet }
+        onDispose { filterCoordinator?.unregister() }
+    }
 
     // Markers must be created AFTER Maps SDK is initialized (inside GoogleMap scope via MapEffect)
     var donorMarkerIcon by remember { mutableStateOf<com.google.android.gms.maps.model.BitmapDescriptor?>(null) }
@@ -150,64 +162,55 @@ fun VolunteerMapScreen(
             }
         }
 
-        // Top control panel
-        Card(
-            modifier = Modifier.align(Alignment.TopCenter).padding(10.dp).fillMaxWidth(0.95f),
-            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.97f)),
-            elevation = CardDefaults.cardElevation(6.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                // Filter chips
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    MapFilterChip(
-                        label = "Exibir Todos",
-                        selected = state.mapFilter == MapFilter.ALL,
-                        color = warmColor,
-                        onClick = { viewModel.setMapFilter(MapFilter.ALL) }
-                    )
-                    MapFilterChip(
-                        label = "🏠 Doadores (${visibleDonors.size})",
-                        selected = state.mapFilter == MapFilter.DONORS_ONLY,
-                        color = Color(0xFF4CAF50),
-                        onClick = { viewModel.setMapFilter(MapFilter.DONORS_ONLY) }
-                    )
-                    MapFilterChip(
-                        label = "🏢 ONGs (${visibleNgos.size})",
-                        selected = state.mapFilter == MapFilter.NGOS_ONLY,
-                        color = Color(0xFF1976D2),
-                        onClick = { viewModel.setMapFilter(MapFilter.NGOS_ONLY) }
-                    )
+        // Filter bottom sheet (toggled via TopAppBar icon)
+        if (showFilterSheet) {
+            FilterBottomSheet(
+                onDismiss = { showFilterSheet = false },
+                title = "Filtrar mapa",
+                accentColor = warmColor,
+                onClear = {
+                    viewModel.setMapFilter(MapFilter.ALL)
+                    viewModel.setFilterRadius(50f)
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Radius slider
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Raio: ${state.filterRadiusKm.toInt()} km", fontWeight = FontWeight.Bold, color = warmColor, fontSize = 13.sp)
-                    if (onSwitchToList != null) {
-                        TextButton(onClick = onSwitchToList) {
-                            Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Ver Lista", fontSize = 12.sp)
-                        }
+            ) {
+                FilterSection(title = "Exibir", accentColor = warmColor) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MapFilterChip(
+                            label = "Todos",
+                            selected = state.mapFilter == MapFilter.ALL,
+                            color = warmColor,
+                            onClick = { viewModel.setMapFilter(MapFilter.ALL) }
+                        )
+                        MapFilterChip(
+                            label = "🏠 Doadores (${visibleDonors.size})",
+                            selected = state.mapFilter == MapFilter.DONORS_ONLY,
+                            color = Color(0xFF4CAF50),
+                            onClick = { viewModel.setMapFilter(MapFilter.DONORS_ONLY) }
+                        )
+                        MapFilterChip(
+                            label = "🏢 ONGs (${visibleNgos.size})",
+                            selected = state.mapFilter == MapFilter.NGOS_ONLY,
+                            color = Color(0xFF1976D2),
+                            onClick = { viewModel.setMapFilter(MapFilter.NGOS_ONLY) }
+                        )
                     }
                 }
-                Slider(
-                    value = state.filterRadiusKm,
-                    onValueChange = { viewModel.setFilterRadius(it) },
-                    valueRange = 1f..50f,
-                    steps = 48,
-                    colors = SliderDefaults.colors(thumbColor = warmColor, activeTrackColor = warmColor),
-                    modifier = Modifier.fillMaxWidth()
-                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                FilterSection(title = "Raio: ${state.filterRadiusKm.toInt()} km", accentColor = warmColor) {
+                    Slider(
+                        value = state.filterRadiusKm,
+                        onValueChange = { viewModel.setFilterRadius(it) },
+                        valueRange = 1f..50f,
+                        steps = 48,
+                        colors = SliderDefaults.colors(thumbColor = warmColor, activeTrackColor = warmColor),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
 
