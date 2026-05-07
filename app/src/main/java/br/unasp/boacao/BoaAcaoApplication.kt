@@ -29,6 +29,12 @@ class BoaAcaoApplication : Application() {
     lateinit var rankingRepository: RankingRepository
         private set
 
+    lateinit var eventRepository: EventRepository
+        private set
+
+    lateinit var attendanceRepository: AttendanceRepository
+        private set
+
     override fun onCreate() {
         super.onCreate()
         val auth = FirebaseAuth.getInstance()
@@ -41,6 +47,8 @@ class BoaAcaoApplication : Application() {
         pointsRepository = PointsRepositoryImpl(firestore)
         giftCardRepository = GiftCardRepositoryImpl(firestore)
         rankingRepository = RankingRepositoryImpl(firestore)
+        eventRepository = EventRepositoryImpl(firestore)
+        attendanceRepository = AttendanceRepositoryImpl(firestore)
 
         NotificationHelper.createNotificationChannel(this)
     }

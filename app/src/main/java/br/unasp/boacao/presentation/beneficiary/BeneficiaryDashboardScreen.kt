@@ -10,15 +10,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -32,7 +31,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.Donation
+import br.unasp.boacao.domain.model.DonationItem
 import br.unasp.boacao.presentation.components.QrScannerDialog
+import br.unasp.boacao.presentation.navigation.InternalRoutes
 import br.unasp.boacao.util.ImageUtils
 
 @Composable
@@ -48,36 +49,73 @@ fun BeneficiaryDashboardScreen(navController: NavController) {
 
     Scaffold(
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = { showReceiveDialog = true },
                 containerColor = Color(0xFF4CAF50),
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
+                contentColor = Color.White
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("RECEBER", fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("RECEBER", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
             }
         }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 2.dp) {
+                Text(
+                    text = "Doações a Caminho",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = warmPrimaryColor,
+                    modifier = Modifier.padding(16.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = warmPrimaryColor.copy(alpha = 0.10f),
+                onClick = { navController.navigate(InternalRoutes.BENEFICIARY_EVENTS) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Event, contentDescription = null, tint = warmPrimaryColor)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Gerenciar Eventos", fontWeight = FontWeight.Bold, color = warmPrimaryColor)
+                        Text(
+                            "Crie eventos, faça check-in/out e emita certificados",
+                            fontSize = 12.sp, color = Color.DarkGray
+                        )
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = warmPrimaryColor)
+                }
+            }
+
             Box(modifier = Modifier.fillMaxSize()) {
                 if (state.isLoading && state.incomingDonations.isEmpty()) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = warmPrimaryColor)
                 } else if (state.incomingDonations.isEmpty()) {
                     Column(modifier = Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.LocalShipping, contentDescription = null, modifier = Modifier.size(72.dp), tint = Color(0xFFE0E0E0))
+                        Icon(Icons.Default.LocalShipping, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Nenhuma doação a caminho", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Color.Gray)
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Nenhuma doação a caminho.", color = Color.Gray, textAlign = TextAlign.Center)
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Quando um voluntário selecionar esta ONG como destino, a doação aparecerá aqui.",
+                            "Quando um voluntário selecionar esta ONG como destino, a doação aparecerá aqui.\n\nSe o voluntário já está presente, use o botão RECEBER.",
                             color = Color.LightGray, textAlign = TextAlign.Center, fontSize = 13.sp
                         )
                     }
                 } else {
-                    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(state.incomingDonations, key = { it.id }) { donation ->
+                    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        items(state.incomingDonations) { donation ->
                             IncomingDonationCard(donation = donation) { showReceiveDialog = true }
                         }
                     }
@@ -89,7 +127,6 @@ fun BeneficiaryDashboardScreen(navController: NavController) {
     if (showReceiveDialog) {
         ReceiveByPinDialog(
             viewModel = viewModel,
-            isLoading = state.isLoading,
             onDismiss = { showReceiveDialog = false },
             onConfirmed = {
                 showReceiveDialog = false
@@ -101,38 +138,23 @@ fun BeneficiaryDashboardScreen(navController: NavController) {
 
 @Composable
 fun IncomingDonationCard(donation: Donation, onConfirmClick: () -> Unit) {
-    val infoColor = Color(0xFF1976D2)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(16.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(4.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(36.dp).clip(CircleShape).background(infoColor.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.LocalShipping, contentDescription = null, tint = infoColor, modifier = Modifier.size(20.dp))
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Voluntário: ${donation.volunteerName ?: "A Caminho"}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = infoColor)
-                    Text(donation.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF212121))
-                }
+                Icon(Icons.Default.LocalShipping, contentDescription = null, tint = Color(0xFF1976D2))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Voluntário: ${donation.volunteerName ?: "A Caminho"}", fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Vindo de: ${donation.donorName}", color = Color.Gray, fontSize = 12.sp)
+            Text(donation.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Vindo de: ${donation.donorName}", color = Color.Gray, fontSize = 14.sp)
 
             if (donation.items.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = Color(0xFFF0F0F0))
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 donation.items.forEach { item ->
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
-                        Icon(Icons.Default.FiberManualRecord, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(7.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.FiberManualRecord, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text("${item.name} — ${item.quantity}", fontSize = 13.sp, color = Color.DarkGray)
                     }
                 }
@@ -142,10 +164,9 @@ fun IncomingDonationCard(donation: Donation, onConfirmClick: () -> Unit) {
             Button(
                 onClick = onConfirmClick,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-                shape = RoundedCornerShape(12.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
-                Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.VerifiedUser, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Confirmar Recebimento (PIN)")
             }
@@ -156,7 +177,6 @@ fun IncomingDonationCard(donation: Donation, onConfirmClick: () -> Unit) {
 @Composable
 fun ReceiveByPinDialog(
     viewModel: BeneficiaryViewModel,
-    isLoading: Boolean,
     onDismiss: () -> Unit,
     onConfirmed: () -> Unit
 ) {
@@ -211,50 +231,40 @@ fun ReceiveByPinDialog(
         }
     }
 
-    Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
-        Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
 
                 when (step) {
+                    // ---------- STEP 0: Enter delivery code ----------
                     0 -> {
-                        Box(
-                            modifier = Modifier.size(64.dp).clip(CircleShape).background(greenColor.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.VpnKey, contentDescription = null, tint = greenColor, modifier = Modifier.size(32.dp))
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Icon(Icons.Default.VpnKey, contentDescription = null, tint = greenColor, modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text("Receber Doação", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                         Text("Escaneie ou digite o código que o voluntário está mostrando.", textAlign = TextAlign.Center, color = Color.Gray, fontSize = 13.sp)
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
+                        // QR scan button
                         Button(
                             onClick = { showQrScanner = true },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
-                            shape = RoundedCornerShape(12.dp),
-                            enabled = !isLooking
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
                         ) {
                             Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Escanear QR Code")
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            HorizontalDivider(modifier = Modifier.weight(1f))
-                            Text("  ou  ", fontSize = 12.sp, color = Color.Gray)
-                            HorizontalDivider(modifier = Modifier.weight(1f))
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("ou digite manualmente:", fontSize = 12.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         OutlinedTextField(
                             value = code,
                             onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) { code = it; lookupError = null } },
                             placeholder = { Text("0000") },
+                            label = { Text("Código do Voluntário") },
                             textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center, fontSize = 28.sp, letterSpacing = 8.sp),
-                            singleLine = true, modifier = Modifier.fillMaxWidth(0.65f),
-                            shape = RoundedCornerShape(12.dp),
-                            enabled = !isLooking
+                            singleLine = true, modifier = Modifier.fillMaxWidth(0.65f)
                         )
                         if (lookupError != null) {
                             Spacer(modifier = Modifier.height(8.dp))
@@ -262,7 +272,7 @@ fun ReceiveByPinDialog(
                         }
                         Spacer(modifier = Modifier.height(24.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            TextButton(onClick = onDismiss, enabled = !isLooking) { Text("Cancelar") }
+                            TextButton(onClick = onDismiss) { Text("Cancelar") }
                             Button(
                                 onClick = {
                                     isLooking = true
@@ -278,82 +288,91 @@ fun ReceiveByPinDialog(
                                     }
                                 },
                                 enabled = code.length == 4 && !isLooking,
-                                colors = ButtonDefaults.buttonColors(containerColor = greenColor),
-                                shape = RoundedCornerShape(12.dp)
+                                colors = ButtonDefaults.buttonColors(containerColor = greenColor)
                             ) {
-                                if (isLooking) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                                else Text("Verificar")
+                                if (isLooking) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
+                                else Text("Verificar →")
                             }
                         }
                     }
+
+                    // ---------- STEP 1: Preview + Confirm ----------
                     1 -> {
-                        foundDonation?.let { donation ->
-                            Icon(Icons.Default.Info, contentDescription = null, tint = greenColor, modifier = Modifier.size(48.dp))
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text("Confirmar Itens", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Text("Verifique se os itens estão corretos.", color = Color.Gray, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.height(16.dp))
+                        val donation = foundDonation!!
+                        Icon(Icons.Default.Inventory, contentDescription = null, tint = greenColor, modifier = Modifier.size(40.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Você está recebendo:", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = greenColor)
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(donation.title, fontWeight = FontWeight.Bold)
+                        // Donation info card
+                        Surface(color = Color(0xFFF5F5F5), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(donation.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text("Doador: ${donation.donorName}", fontSize = 13.sp, color = Color.Gray)
+                                Text("Voluntário: ${donation.volunteerName ?: "—"}", fontSize = 13.sp, color = Color.Gray)
+                                if (donation.items.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("Itens:", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
                                     donation.items.forEach { item ->
-                                        Text("• ${item.name} (${item.quantity})", fontSize = 13.sp)
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(20.dp))
-                            Text("Foto do Recebimento (Opcional)", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            if (proofBase64.isNotBlank()) {
-                                val bitmap = remember(proofBase64) {
-                                    val decoded = Base64.decode(proofBase64, Base64.DEFAULT)
-                                    BitmapFactory.decodeByteArray(decoded, 0, decoded.size)
-                                }
-                                Box(modifier = Modifier.size(120.dp).clip(RoundedCornerShape(8.dp))) {
-                                    Image(bitmap!!.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                                    IconButton(onClick = { proofBase64 = "" }, modifier = Modifier.align(Alignment.TopEnd).background(Color.Black.copy(0.4f), CircleShape).size(24.dp)) {
-                                        Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-                            } else {
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    OutlinedButton(onClick = {
-                                        val photoFile = java.io.File(context.cacheDir, "proof_${System.currentTimeMillis()}.jpg")
-                                        cameraUri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", photoFile)
-                                        cameraLauncher.launch(cameraUri!!)
-                                    }, shape = RoundedCornerShape(12.dp)) {
-                                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Câmera")
-                                    }
-                                    OutlinedButton(onClick = { galleryLauncher.launch("image/*") }, shape = RoundedCornerShape(12.dp)) {
-                                        Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Galeria")
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                TextButton(onClick = { step = 0 }, enabled = !isLoading) { Text("Voltar") }
-                                Button(
-                                    onClick = {
-                                        viewModel.confirmDelivery(context, donation, code, proofBase64) { success, err ->
-                                            if (success) onConfirmed()
-                                            else Toast.makeText(context, err ?: "Erro", Toast.LENGTH_LONG).show()
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.FiberManualRecord, contentDescription = null, tint = greenColor, modifier = Modifier.size(7.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("${item.name} — ${item.quantity}", fontSize = 12.sp)
                                         }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = greenColor),
-                                    shape = RoundedCornerShape(12.dp),
-                                    enabled = !isLoading
-                                ) {
-                                    if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                                    else Text("Confirmar Tudo")
+                                    }
                                 }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Proof photo
+                        if (proofBase64.isNotBlank()) {
+                            val bytes = Base64.decode(proofBase64, Base64.DEFAULT)
+                            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = "Comprovante",
+                                    modifier = Modifier.fillMaxWidth().height(120.dp).background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = {
+                                val uri = ImageUtils.createTempImageUri(context)
+                                cameraUri = uri
+                                cameraLauncher.launch(uri)
+                            }, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (proofBase64.isBlank()) "Câmera" else "Retomar", fontSize = 12.sp)
+                            }
+                            OutlinedButton(onClick = { galleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Default.Photo, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Galeria", fontSize = 12.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            TextButton(onClick = { step = 0; code = "" }) { Text("← Voltar") }
+                            Button(
+                                onClick = {
+                                    viewModel.confirmDelivery(context, donation, code, proofBase64) { success, errorMsg ->
+                                        if (success) onConfirmed()
+                                        else Toast.makeText(context, errorMsg ?: "Erro", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = greenColor)
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Confirmar Recebimento")
                             }
                         }
                     }

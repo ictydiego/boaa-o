@@ -31,8 +31,10 @@ import androidx.navigation.NavController
 import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.Donation
 import br.unasp.boacao.domain.model.DonationStatus
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import br.unasp.boacao.presentation.components.LocalFilterIconCoordinator
 import br.unasp.boacao.presentation.components.QrScannerDialog
+import br.unasp.boacao.presentation.navigation.InternalRoutes
 import br.unasp.boacao.util.QrCodeUtils
 
 @Composable
@@ -62,6 +64,27 @@ fun VolunteerDashboardScreen(navController: NavController) {
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                color = warmPrimaryColor.copy(alpha = 0.10f),
+                onClick = { navController.navigate(InternalRoutes.VOLUNTEER_EVENTS) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Event, contentDescription = null, tint = warmPrimaryColor)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Ações Voluntárias", fontWeight = FontWeight.Bold, color = warmPrimaryColor, fontSize = 14.sp)
+                        Text("Inscreva-se em eventos e ganhe certificados", fontSize = 11.sp, color = Color.DarkGray)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = warmPrimaryColor)
+                }
+            }
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.White,

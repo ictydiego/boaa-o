@@ -43,6 +43,15 @@ import br.unasp.boacao.presentation.profile.ProfileScreen
 import br.unasp.boacao.presentation.ranking.RankingScreen
 import br.unasp.boacao.presentation.volunteer.VolunteerDashboardScreen
 import br.unasp.boacao.presentation.beneficiary.BeneficiaryHistoryScreen
+import br.unasp.boacao.presentation.event.EventCreateScreen
+import br.unasp.boacao.presentation.event.EventDetailScreen
+import br.unasp.boacao.presentation.event.EventListScreen
+import br.unasp.boacao.presentation.event.EventScannerScreen
+import br.unasp.boacao.presentation.event.MyCertificatesScreen
+import br.unasp.boacao.presentation.event.MyTicketsScreen
+import br.unasp.boacao.presentation.event.NgoEventsScreen
+import br.unasp.boacao.presentation.event.OngSignatureScreen
+import br.unasp.boacao.presentation.event.TicketQrScreen
 import br.unasp.boacao.presentation.volunteer.VolunteerHistoryScreen
 import br.unasp.boacao.presentation.volunteer.VolunteerMapScreen
 import br.unasp.boacao.util.NotificationHelper
@@ -121,12 +130,17 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
             MenuItem("Histórico de Entregas", Icons.Default.History, InternalRoutes.VOLUNTEER_HISTORY),
             MenuItem("Meus Pontos", Icons.Default.Star, InternalRoutes.VOLUNTEER_POINTS),
             MenuItem("Gift Cards", Icons.Default.CardGiftcard, InternalRoutes.VOLUNTEER_GIFTCARDS),
+            MenuItem("Eventos", Icons.Default.Event, InternalRoutes.VOLUNTEER_EVENTS),
+            MenuItem("Meus Ingressos", Icons.Default.ConfirmationNumber, InternalRoutes.VOLUNTEER_TICKETS),
+            MenuItem("Meus Certificados", Icons.Default.WorkspacePremium, InternalRoutes.VOLUNTEER_CERTIFICATES),
             MenuItem("Ranking", Icons.Default.EmojiEvents, InternalRoutes.VOLUNTEER_RANKING),
             MenuItem("Meu Perfil", Icons.Default.Person, InternalRoutes.VOLUNTEER_PROFILE)
         )
         UserRole.BENEFICIARY -> listOf(
             MenuItem("Recebimentos", Icons.Default.CheckCircle, InternalRoutes.BENEFICIARY_HOME),
             MenuItem("Histórico de Recebimentos", Icons.Default.History, InternalRoutes.BENEFICIARY_HISTORY),
+            MenuItem("Meus Eventos", Icons.Default.Event, InternalRoutes.BENEFICIARY_EVENTS),
+            MenuItem("Assinatura Digital", Icons.Default.Draw, InternalRoutes.BENEFICIARY_SIGNATURE),
             MenuItem("Ranking de ONGs", Icons.Default.EmojiEvents, InternalRoutes.BENEFICIARY_RANKING),
             MenuItem("Meu Perfil", Icons.Default.Person, InternalRoutes.BENEFICIARY_PROFILE)
         )
@@ -288,6 +302,26 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
                         composable(InternalRoutes.BENEFICIARY_HISTORY) { BeneficiaryHistoryScreen(nestedNavController) }
                         composable(InternalRoutes.BENEFICIARY_RANKING) { RankingScreen(nestedNavController, UserRole.BENEFICIARY) }
                         composable(InternalRoutes.BENEFICIARY_PROFILE) { ProfileScreen(nestedNavController) }
+
+                        // Eventos & Certificação
+                        composable(InternalRoutes.VOLUNTEER_EVENTS) { EventListScreen(nestedNavController) }
+                        composable(InternalRoutes.VOLUNTEER_TICKETS) { MyTicketsScreen(nestedNavController) }
+                        composable(InternalRoutes.VOLUNTEER_CERTIFICATES) { MyCertificatesScreen(nestedNavController) }
+                        composable("${InternalRoutes.VOLUNTEER_TICKET_QR}/{ticketCode}") { backStack ->
+                            val code = backStack.arguments?.getString("ticketCode").orEmpty()
+                            TicketQrScreen(nestedNavController, code)
+                        }
+                        composable(InternalRoutes.BENEFICIARY_EVENTS) { NgoEventsScreen(nestedNavController) }
+                        composable(InternalRoutes.BENEFICIARY_EVENT_CREATE) { EventCreateScreen(nestedNavController) }
+                        composable("${InternalRoutes.BENEFICIARY_EVENT_DETAIL}/{eventId}") { backStack ->
+                            val id = backStack.arguments?.getString("eventId").orEmpty()
+                            EventDetailScreen(nestedNavController, id)
+                        }
+                        composable("${InternalRoutes.BENEFICIARY_EVENT_SCANNER}/{eventId}") { backStack ->
+                            val id = backStack.arguments?.getString("eventId").orEmpty()
+                            EventScannerScreen(nestedNavController, id)
+                        }
+                        composable(InternalRoutes.BENEFICIARY_SIGNATURE) { OngSignatureScreen(nestedNavController) }
                     }
                 }
             }

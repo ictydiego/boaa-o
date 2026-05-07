@@ -132,7 +132,7 @@ fun QrScannerDialog(
 }
 
 @Composable
-private fun QrScannerView(onScanned: (String) -> Unit) {
+fun QrScannerView(onScanned: (String) -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val hasScanned = remember { AtomicBoolean(false) }

@@ -12,6 +12,7 @@ interface AuthRepository {
     suspend fun getUserProfile(): Result<UserProfile>
     suspend fun getUserById(userId: String): Result<UserProfile>
     suspend fun updateProfilePhoto(userId: String, base64: String): Result<Unit>
+    suspend fun updateSignature(userId: String, signatureBase64: String): Result<Unit>
     fun logout()
 }
 
@@ -33,6 +34,7 @@ class AuthRepositoryImpl(
             points = (doc.getLong("points") ?: 0L).toInt(),
             donationCount = (doc.getLong("donationCount") ?: 0L).toInt(),
             photoBase64 = doc.getString("photoBase64") ?: "",
+            signatureBase64 = doc.getString("signatureBase64") ?: "",
             receivedCount = (doc.getLong("receivedCount") ?: 0L).toInt(),
             latitude = doc.getDouble("latitude") ?: 0.0,
             longitude = doc.getDouble("longitude") ?: 0.0
@@ -103,6 +105,16 @@ class AuthRepositoryImpl(
         return try {
             firestore.collection("users").document(userId)
                 .update("photoBase64", base64).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateSignature(userId: String, signatureBase64: String): Result<Unit> {
+        return try {
+            firestore.collection("users").document(userId)
+                .update("signatureBase64", signatureBase64).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

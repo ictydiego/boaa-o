@@ -27,11 +27,20 @@ object InternalRoutes {
     const val VOLUNTEER_RANKING = "volunteer_ranking"
     const val VOLUNTEER_PROFILE = "volunteer_profile"
     const val VOLUNTEER_HISTORY = "volunteer_history"
+    const val VOLUNTEER_EVENTS = "volunteer_events"
+    const val VOLUNTEER_TICKETS = "volunteer_tickets"
+    const val VOLUNTEER_TICKET_QR = "volunteer_ticket_qr"
+    const val VOLUNTEER_CERTIFICATES = "volunteer_certificates"
 
     const val BENEFICIARY_HOME = "beneficiary_home"
     const val BENEFICIARY_HISTORY = "beneficiary_history"
     const val BENEFICIARY_RANKING = "beneficiary_ranking"
     const val BENEFICIARY_PROFILE = "beneficiary_profile"
+    const val BENEFICIARY_EVENTS = "beneficiary_events"
+    const val BENEFICIARY_EVENT_CREATE = "beneficiary_event_create"
+    const val BENEFICIARY_EVENT_DETAIL = "beneficiary_event_detail"
+    const val BENEFICIARY_EVENT_SCANNER = "beneficiary_event_scanner"
+    const val BENEFICIARY_SIGNATURE = "beneficiary_signature"
 }
 
 @Composable
