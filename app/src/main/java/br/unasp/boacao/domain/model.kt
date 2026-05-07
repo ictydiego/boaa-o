@@ -17,6 +17,7 @@ data class UserProfile(
     val donationCount: Int = 0,
     val receivedCount: Int = 0,
     val photoBase64: String = "",
+    val signatureBase64: String = "",
     val latitude: Double = 0.0,
     val longitude: Double = 0.0
 )
