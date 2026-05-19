@@ -10,6 +10,7 @@ data class Attendance(
     val checkInAt: Long? = null,
     val checkOutAt: Long? = null,
     val performanceNote: String = "",
+    val rating: Int = 0,
     val status: AttendanceStatus = AttendanceStatus.SUBSCRIBED,
     val certificateHash: String = ""
 )

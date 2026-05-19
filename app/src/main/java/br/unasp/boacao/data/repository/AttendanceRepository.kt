@@ -17,7 +17,7 @@ interface AttendanceRepository {
     fun observeEventAttendances(eventId: String): Flow<List<Attendance>>
     suspend fun getAttendance(eventId: String, attendanceId: String): Result<Attendance>
     suspend fun checkIn(eventId: String, ticketCode: String): Result<Attendance>
-    suspend fun checkOut(eventId: String, ticketCode: String, performanceNote: String): Result<Attendance>
+    suspend fun checkOut(eventId: String, ticketCode: String, performanceNote: String, rating: Int): Result<Attendance>
 }
 
 class AttendanceRepositoryImpl(
@@ -80,10 +80,16 @@ class AttendanceRepositoryImpl(
     } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun checkIn(eventId: String, ticketCode: String): Result<Attendance> = try {
+        val eventRef = firestore.collection("events").document(eventId)
         val query = col(eventId).whereEqualTo("ticketCode", ticketCode).limit(1).get().await()
         val doc = query.documents.firstOrNull() ?: throw Exception("Ticket inválido")
         val ref = doc.reference
         val updated = firestore.runTransaction { tx ->
+            val eventSnap = tx.get(eventRef)
+            val eventStatus = eventSnap.getString("status")
+            if (eventStatus != "IN_PROGRESS") {
+                throw Exception("Evento não iniciado. Inicie o evento antes de fazer check-in.")
+            }
             val snap = tx.get(ref)
             val status = snap.getString("status")
             if (status != AttendanceStatus.SUBSCRIBED.name) {
@@ -101,7 +107,8 @@ class AttendanceRepositoryImpl(
         Result.success(updated)
     } catch (e: Exception) { Result.failure(e) }
 
-    override suspend fun checkOut(eventId: String, ticketCode: String, performanceNote: String): Result<Attendance> = try {
+    override suspend fun checkOut(eventId: String, ticketCode: String, performanceNote: String, rating: Int): Result<Attendance> = try {
+        val safeRating = rating.coerceIn(1, 5)
         val query = col(eventId).whereEqualTo("ticketCode", ticketCode).limit(1).get().await()
         val doc = query.documents.firstOrNull() ?: throw Exception("Ticket inválido")
         val ref = doc.reference
@@ -117,22 +124,26 @@ class AttendanceRepositoryImpl(
             tx.update(ref, mapOf(
                 "checkOutAt" to now,
                 "performanceNote" to performanceNote,
+                "rating" to safeRating,
                 "status" to AttendanceStatus.CHECKED_OUT.name,
                 "certificateHash" to hash
             ))
             snap.toObject(Attendance::class.java)!!.copy(
                 id = snap.id, checkOutAt = now,
                 performanceNote = performanceNote,
+                rating = safeRating,
                 status = AttendanceStatus.CHECKED_OUT,
                 certificateHash = hash
             )
         }.await()
-        // Award participation points (idempotency-light: relies on tx above already enforcing CHECKED_IN→CHECKED_OUT once)
-        pointsRepository?.addPoints(updated.volunteerId, EVENT_PARTICIPATION_POINTS, "Participação em evento")
+        // Award stars-weighted points: 1★=10, 5★=50.
+        // Idempotency-light: relies on tx above only allowing CHECKED_IN→CHECKED_OUT once.
+        val pts = safeRating * POINTS_PER_STAR
+        pointsRepository?.addPoints(updated.volunteerId, pts, "Participação em evento (${safeRating}★)")
         Result.success(updated)
     } catch (e: Exception) { Result.failure(e) }
 
     companion object {
-        const val EVENT_PARTICIPATION_POINTS = 50
+        const val POINTS_PER_STAR = 10
     }
 }

@@ -1,4 +1,5 @@
 import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -11,6 +12,17 @@ plugins {
     alias(libs.plugins.google.firebase.appdistribution)
 }
 
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun signingProperty(name: String): String =
+    keystoreProperties.getProperty(name)
+        ?: error("Missing '$name' in ${keystorePropertiesFile.path}")
+
 android {
     namespace = "br.unasp.boacao"
     compileSdk = 35
@@ -19,8 +31,8 @@ android {
         applicationId = "br.unasp.boacao"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -28,8 +40,20 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                storeFile = rootProject.file(signingProperty("storeFile"))
+                storePassword = signingProperty("storePassword")
+                keyAlias = signingProperty("keyAlias")
+                keyPassword = signingProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false // Habilite para produção (true) e configure o ProGuard/R8
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -114,6 +138,7 @@ dependencies {
     // Core AndroidX
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.core:core:1.13.1")
+    implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
     implementation("androidx.compose.foundation:foundation:1.6.8")
 

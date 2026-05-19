@@ -33,7 +33,11 @@ class LoginViewModel(
         _uiState.value = _uiState.value.copy(password = newValue)
     }
 
-    fun login(onNavigate: (UserRole) -> Unit) {
+    fun showError(message: String) {
+        _uiState.value = _uiState.value.copy(error = message)
+    }
+
+    fun login(onSuccess: (UserRole, String, String) -> Unit) {
         val email = _uiState.value.email
         val pass = _uiState.value.password
 
@@ -42,14 +46,22 @@ class LoginViewModel(
             return
         }
 
+        loginInternal(email, pass) { role -> onSuccess(role, email, pass) }
+    }
+
+    fun loginWithSavedCredentials(email: String, password: String, onSuccess: (UserRole) -> Unit) {
+        loginInternal(email, password, onSuccess)
+    }
+
+    private fun loginInternal(email: String, password: String, onSuccess: (UserRole) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            val result = repository.login(email, pass)
+            val result = repository.login(email, password)
 
             result.onSuccess { profile ->
                 _uiState.value = _uiState.value.copy(isLoading = false)
-                onNavigate(profile.role)
+                onSuccess(profile.role)
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,

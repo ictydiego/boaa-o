@@ -75,7 +75,8 @@ fun AppNavigation() {
             MainScreen(
                 onLogoutSuccess = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo(Screen.Main.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )

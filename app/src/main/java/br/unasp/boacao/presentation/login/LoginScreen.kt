@@ -1,10 +1,14 @@
 package br.unasp.boacao.presentation.login
 
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -19,11 +23,20 @@ import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.BuildConfig
 import br.unasp.boacao.domain.model.UserRole
 import br.unasp.boacao.R // Importante para puxar o R.drawable.logo
+import br.unasp.boacao.security.BiometricCredentialStore
+import br.unasp.boacao.security.StoredLoginCredentials
+
+private data class PendingBiometricSetup(
+    val role: UserRole,
+    val credentials: StoredLoginCredentials
+)
 
 @Composable
 fun LoginScreen(
@@ -34,6 +47,9 @@ fun LoginScreen(
     val context = LocalContext.current
     val application = context.applicationContext as BoaAcaoApplication
     val repository = application.authRepository
+    val biometricCredentialStore = remember(context.applicationContext) {
+        BiometricCredentialStore(context.applicationContext)
+    }
 
     val viewModel: LoginViewModel = viewModel(
         factory = LoginViewModelFactory(repository)
@@ -42,9 +58,115 @@ fun LoginScreen(
 
     val state by viewModel.uiState.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
+    var canUseBiometricLogin by remember { mutableStateOf(biometricCredentialStore.canUseBiometricLogin()) }
+    var pendingBiometricSetup by remember { mutableStateOf<PendingBiometricSetup?>(null) }
+
+    fun navigateAfterLogin(role: UserRole) {
+        canUseBiometricLogin = biometricCredentialStore.canUseBiometricLogin()
+        onNavigateToDashboard(role)
+    }
+
+    fun handlePasswordLoginSuccess(role: UserRole, email: String, password: String) {
+        val credentials = StoredLoginCredentials(email = email, password = password)
+
+        if (biometricCredentialStore.hasCredentials()) {
+            biometricCredentialStore.save(credentials)
+            navigateAfterLogin(role)
+            return
+        }
+
+        if (biometricCredentialStore.canAuthenticateWithBiometrics()) {
+            pendingBiometricSetup = PendingBiometricSetup(role, credentials)
+        } else {
+            navigateAfterLogin(role)
+        }
+    }
+
+    fun authenticateWithBiometrics() {
+        val activity = context.findFragmentActivity()
+        if (activity == null) {
+            viewModel.showError("Biometria indisponivel nesta tela.")
+            return
+        }
+
+        val prompt = BiometricPrompt(
+            activity,
+            ContextCompat.getMainExecutor(context),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    biometricCredentialStore.read().onSuccess { credentials ->
+                        viewModel.loginWithSavedCredentials(
+                            credentials.email,
+                            credentials.password
+                        ) { role -> navigateAfterLogin(role) }
+                    }.onFailure {
+                        canUseBiometricLogin = false
+                        viewModel.showError("Login por digital expirou. Entre com email e senha.")
+                    }
+                }
+
+                override fun onAuthenticationFailed() {
+                    viewModel.showError("Digital nao reconhecida. Tente novamente.")
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    if (
+                        errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
+                        errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
+                        errorCode != BiometricPrompt.ERROR_CANCELED
+                    ) {
+                        viewModel.showError(errString.toString())
+                    }
+                }
+            }
+        )
+
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Entrar com digital")
+            .setSubtitle("Use sua biometria para acessar o Boa Acao")
+            .setNegativeButtonText("Usar senha")
+            .build()
+
+        prompt.authenticate(promptInfo)
+    }
 
     // Cor acolhedora para o tema de doação (Laranja Coral)
     val warmPrimaryColor = Color(0xFFF06A38)
+
+    pendingBiometricSetup?.let { pending ->
+        AlertDialog(
+            onDismissRequest = {
+                pendingBiometricSetup = null
+                navigateAfterLogin(pending.role)
+            },
+            title = { Text("Ativar login por digital?") },
+            text = { Text("Na proxima vez, voce podera entrar neste aparelho usando biometria.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        biometricCredentialStore.save(pending.credentials)
+                            .onFailure {
+                                viewModel.showError("Nao foi possivel ativar a digital neste aparelho.")
+                            }
+                        pendingBiometricSetup = null
+                        navigateAfterLogin(pending.role)
+                    }
+                ) {
+                    Text("Ativar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        pendingBiometricSetup = null
+                        navigateAfterLogin(pending.role)
+                    }
+                ) {
+                    Text("Agora nao")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -129,7 +251,11 @@ fun LoginScreen(
 
         // --- BOTÃO ENTRAR ---
         Button(
-            onClick = { viewModel.login(onNavigateToDashboard) },
+            onClick = {
+                viewModel.login { role, email, password ->
+                    handlePasswordLoginSuccess(role, email, password)
+                }
+            },
             modifier = Modifier.fillMaxWidth().height(55.dp),
             enabled = !state.isLoading,
             shape = RoundedCornerShape(16.dp),
@@ -139,6 +265,21 @@ fun LoginScreen(
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
             } else {
                 Text("Entrar", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        if (canUseBiometricLogin) {
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = { authenticateWithBiometrics() },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                enabled = !state.isLoading,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = warmPrimaryColor)
+            ) {
+                Icon(Icons.Default.Fingerprint, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Entrar com digital", fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -160,4 +301,13 @@ fun LoginScreen(
             fontSize = 12.sp
         )
     }
+}
+
+private fun Context.findFragmentActivity(): FragmentActivity? {
+    var currentContext = this
+    while (currentContext is ContextWrapper) {
+        if (currentContext is FragmentActivity) return currentContext
+        currentContext = currentContext.baseContext
+    }
+    return null
 }
