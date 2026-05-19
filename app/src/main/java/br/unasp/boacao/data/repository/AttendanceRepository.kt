@@ -52,7 +52,7 @@ class AttendanceRepositoryImpl(
         val reg = firestore.collectionGroup("attendances")
             .whereEqualTo("volunteerId", volunteerId)
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 val list = snap?.documents?.mapNotNull { d ->
                     d.toObject(Attendance::class.java)?.copy(id = d.id)
                 } ?: emptyList()
@@ -63,7 +63,7 @@ class AttendanceRepositoryImpl(
 
     override fun observeEventAttendances(eventId: String): Flow<List<Attendance>> = callbackFlow {
         val reg = col(eventId).addSnapshotListener { snap, err ->
-            if (err != null) { close(err); return@addSnapshotListener }
+            if (err != null) { close(); return@addSnapshotListener }
             val list = snap?.documents?.mapNotNull { d ->
                 d.toObject(Attendance::class.java)?.copy(id = d.id)
             } ?: emptyList()

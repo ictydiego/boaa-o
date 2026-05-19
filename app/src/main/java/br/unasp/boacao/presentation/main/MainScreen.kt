@@ -76,6 +76,7 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
     val currentRoute = navBackStackEntry?.destination?.route
     val warmPrimaryColor = Color(0xFFF06A38)
     val filterCoordinator = remember { FilterIconCoordinator() }
+    var isLoggingOut by remember { mutableStateOf(false) }
 
     // Request notification permission (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -89,34 +90,37 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
     }
 
     // Real-time Firestore listener for nearby donations
-    DisposableEffect(Unit) {
-        var lastKnownIds = mutableSetOf<String>()
-        var registration: ListenerRegistration? = null
-        var isFirstLoad = true
+    DisposableEffect(isLoggingOut) {
+        if (isLoggingOut) {
+            onDispose { }
+        } else {
+            var lastKnownIds = mutableSetOf<String>()
+            var isFirstLoad = true
 
-        registration = FirebaseFirestore.getInstance()
-            .collection("donations")
-            .whereEqualTo("status", "AVAILABLE")
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot == null) return@addSnapshotListener
-                if (isFirstLoad) {
-                    lastKnownIds = snapshot.documents.map { it.id }.toMutableSet()
-                    isFirstLoad = false
-                    return@addSnapshotListener
-                }
-                snapshot.documentChanges.forEach { change ->
-                    if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
-                        val doc = change.document
-                        if (doc.id !in lastKnownIds) {
-                            lastKnownIds.add(doc.id)
-                            val donorName = doc.getString("donorName") ?: "Empresa parceira"
-                            NotificationHelper.showNewDonationNotification(context, donorName)
+            val registration: ListenerRegistration = FirebaseFirestore.getInstance()
+                .collection("donations")
+                .whereEqualTo("status", "AVAILABLE")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null || snapshot == null || isLoggingOut) return@addSnapshotListener
+                    if (isFirstLoad) {
+                        lastKnownIds = snapshot.documents.map { it.id }.toMutableSet()
+                        isFirstLoad = false
+                        return@addSnapshotListener
+                    }
+                    snapshot.documentChanges.forEach { change ->
+                        if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                            val doc = change.document
+                            if (doc.id !in lastKnownIds) {
+                                lastKnownIds.add(doc.id)
+                                val donorName = doc.getString("donorName") ?: "Empresa parceira"
+                                NotificationHelper.showNewDonationNotification(context, donorName)
+                            }
                         }
                     }
                 }
-            }
 
-        onDispose { registration?.remove() }
+            onDispose { registration.remove() }
+        }
     }
 
     val menuItems = when (state.userRole) {
@@ -241,6 +245,7 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
                     label = { Text("Sair da Conta", color = Color.Red, fontWeight = FontWeight.Bold) },
                     selected = false,
                     onClick = {
+                        isLoggingOut = true
                         scope.launch {
                             drawerState.close()
                             viewModel.logout()

@@ -26,7 +26,7 @@ class EventRepositoryImpl(
         val reg = collection
             .whereIn("status", listOf(EventStatus.PUBLISHED.name, EventStatus.IN_PROGRESS.name))
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 val list = snap?.documents?.mapNotNull { d ->
                     d.toObject(Event::class.java)?.copy(id = d.id)
                 } ?: emptyList()
@@ -38,7 +38,7 @@ class EventRepositoryImpl(
     override fun observeNgoEvents(ngoId: String): Flow<List<Event>> = callbackFlow {
         val reg = collection.whereEqualTo("ngoId", ngoId)
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 val list = snap?.documents?.mapNotNull { d ->
                     d.toObject(Event::class.java)?.copy(id = d.id)
                 } ?: emptyList()

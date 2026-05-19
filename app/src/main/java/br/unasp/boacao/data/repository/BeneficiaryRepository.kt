@@ -49,7 +49,7 @@ class BeneficiaryRepositoryImpl(
             .whereEqualTo("beneficiaryId", beneficiaryId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    close()
                     return@addSnapshotListener
                 }
                 val list = snapshot?.documents

@@ -40,7 +40,7 @@ class VolunteerRepositoryImpl(
             .whereEqualTo("status", DonationStatus.AVAILABLE.name)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    close()
                     return@addSnapshotListener
                 }
                 val list = snapshot?.documents?.mapNotNull { it.toObject(Donation::class.java) } ?: emptyList()
@@ -54,7 +54,7 @@ class VolunteerRepositoryImpl(
             .whereEqualTo("volunteerId", volunteerId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    close()
                     return@addSnapshotListener
                 }
                 val list = snapshot?.documents

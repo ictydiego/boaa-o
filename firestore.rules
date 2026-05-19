@@ -40,6 +40,10 @@ service cloud.firestore {
       }
     }
 
+    match /{path=**}/attendances/{attendanceId} {
+      allow read: if isSignedIn();
+    }
+
     match /pointsTransactions/{txId} {
       allow read, write: if isSignedIn();
     }

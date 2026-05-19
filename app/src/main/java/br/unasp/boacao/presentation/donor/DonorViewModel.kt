@@ -73,7 +73,11 @@ class DonorViewModel(
         donationsListener = FirebaseFirestore.getInstance()
             .collection("donations")
             .whereEqualTo("donorId", userId)
-            .addSnapshotListener { snapshot, _ ->
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    return@addSnapshotListener
+                }
                 if (snapshot != null) {
                     val list = snapshot.documents.mapNotNull { it.toObject(Donation::class.java) }
                     _uiState.value = _uiState.value.copy(isLoading = false, donations = list)
