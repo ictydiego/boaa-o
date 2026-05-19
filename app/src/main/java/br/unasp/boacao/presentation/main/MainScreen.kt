@@ -241,9 +241,11 @@ fun MainScreen(onLogoutSuccess: () -> Unit) {
                     label = { Text("Sair da Conta", color = Color.Red, fontWeight = FontWeight.Bold) },
                     selected = false,
                     onClick = {
-                        scope.launch { drawerState.close() }
-                        viewModel.logout()
-                        onLogoutSuccess()
+                        scope.launch {
+                            drawerState.close()
+                            viewModel.logout()
+                            onLogoutSuccess()
+                        }
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding).padding(bottom = 16.dp)
                 )
