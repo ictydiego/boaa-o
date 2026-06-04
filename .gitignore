@@ -18,3 +18,12 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# Dev tooling / non-app artifacts
+.claude/
+.firebase/
+docs/
+CLAUDE.md
+landing/
+firebase.json
+.firebaserc
