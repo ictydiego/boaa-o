@@ -19,6 +19,9 @@ keystore.properties
 *.jks
 *.keystore
 
+# Firebase per-environment config (contains API keys)
+google-services.json
+
 # Dev tooling / non-app artifacts
 .claude/
 .firebase/
