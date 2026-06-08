@@ -31,8 +31,8 @@ android {
         applicationId = "br.unasp.boacao"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.1.3"
+        versionCode = 5
+        versionName = "1.1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

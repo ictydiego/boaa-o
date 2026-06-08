@@ -58,6 +58,7 @@ fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
+    val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
     var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) {
@@ -112,9 +113,13 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {
-                val uri = ImageUtils.createTempImageUri(context)
-                cameraUri = uri
-                cameraLauncher.launch(uri)
+                if (cameraPermission.status.isGranted) {
+                    val uri = ImageUtils.createTempImageUri(context)
+                    cameraUri = uri
+                    cameraLauncher.launch(uri)
+                } else {
+                    cameraPermission.launchPermissionRequest()
+                }
             }, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
