@@ -1,7 +1,9 @@
 package br.unasp.boacao.presentation.login
 
 import android.Manifest
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,6 +39,10 @@ import br.unasp.boacao.domain.model.UserRole
 import br.unasp.boacao.util.GeocodeUtils
 import br.unasp.boacao.util.ImageUtils
 import br.unasp.boacao.util.LocationUtils
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -59,21 +65,36 @@ fun RegisterScreen(
     val scrollState = rememberScrollState()
 
     val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
-    var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success) {
-            cameraUri?.let { uri ->
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    val cropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
+        if (result.isSuccessful) {
+            result.uriContent?.let { uri ->
                 val base64 = ImageUtils.uriToBase64(context, uri, maxWidth = 400, maxHeight = 400, quality = 70)
                 if (base64 != null) viewModel.onPhotoChange(base64)
             }
         }
     }
+    fun launchCrop(source: Uri) {
+        cropLauncher.launch(
+            CropImageContractOptions(
+                uri = source,
+                cropImageOptions = CropImageOptions(
+                    cropShape = CropImageView.CropShape.OVAL,
+                    fixAspectRatio = true,
+                    aspectRatioX = 1,
+                    aspectRatioY = 1,
+                    outputCompressFormat = Bitmap.CompressFormat.JPEG
+                )
+            )
+        )
+    }
 
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) cameraUri?.let { launchCrop(it) }
+    }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let {
-            val base64 = ImageUtils.uriToBase64(context, it, maxWidth = 400, maxHeight = 400, quality = 70)
-            if (base64 != null) viewModel.onPhotoChange(base64)
-        }
+        uri?.let { launchCrop(it) }
     }
 
     Column(
