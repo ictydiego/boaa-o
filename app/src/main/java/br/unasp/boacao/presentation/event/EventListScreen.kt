@@ -147,11 +147,23 @@ fun EventListScreen(navController: NavController) {
                                             )
                                         }
                                     } else {
+                                        val subscribing = event.id in state.subscribingIds
                                         Button(
                                             onClick = { viewModel.subscribe(event.id) },
+                                            enabled = !subscribing,
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = ButtonDefaults.buttonColors(containerColor = EventWarmPrimary)
-                                        ) { Text("Inscrever-se") }
+                                        ) {
+                                            if (subscribing) {
+                                                CircularProgressIndicator(
+                                                    color = Color.White,
+                                                    strokeWidth = 2.dp,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            } else {
+                                                Text("Inscrever-se")
+                                            }
+                                        }
                                     }
                                 }
                             )

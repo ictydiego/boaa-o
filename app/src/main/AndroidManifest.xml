@@ -36,6 +36,13 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- CropImageActivity (vanniktech/canhub) extends AppCompatActivity and
+             requires a Theme.AppCompat descendant; override the inherited Material3 theme. -->
+        <activity
+            android:name="com.canhub.cropper.CropImageActivity"
+            android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
+            tools:replace="android:theme" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -30,20 +30,27 @@ class AttendanceRepositoryImpl(
 
     override suspend fun subscribe(eventId: String, volunteer: UserProfile): Result<Attendance> = try {
         val eventRef = firestore.collection("events").document(eventId)
-        val attRef = eventRef.collection("attendances").document()
-        val ticket = UUID.randomUUID().toString()
-        val attendance = Attendance(
-            id = attRef.id,
-            eventId = eventId,
-            volunteerId = volunteer.id,
-            volunteerName = volunteer.name,
-            volunteerDocument = volunteer.document,
-            ticketCode = ticket,
-            status = AttendanceStatus.SUBSCRIBED
-        )
-        firestore.runTransaction { tx ->
+        // Deterministic doc id = volunteer id makes subscribe idempotent: repeated
+        // taps hit the same document instead of creating duplicate attendances.
+        val attRef = eventRef.collection("attendances").document(volunteer.id)
+        val attendance = firestore.runTransaction { tx ->
             tx.get(eventRef) // ensure event exists
-            tx.set(attRef, attendance)
+            val existing = tx.get(attRef)
+            if (existing.exists()) {
+                existing.toObject(Attendance::class.java)!!.copy(id = existing.id)
+            } else {
+                val newAttendance = Attendance(
+                    id = attRef.id,
+                    eventId = eventId,
+                    volunteerId = volunteer.id,
+                    volunteerName = volunteer.name,
+                    volunteerDocument = volunteer.document,
+                    ticketCode = UUID.randomUUID().toString(),
+                    status = AttendanceStatus.SUBSCRIBED
+                )
+                tx.set(attRef, newAttendance)
+                newAttendance
+            }
         }.await()
         Result.success(attendance)
     } catch (e: Exception) { Result.failure(e) }

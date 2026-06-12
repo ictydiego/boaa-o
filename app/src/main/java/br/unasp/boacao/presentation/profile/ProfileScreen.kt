@@ -1,5 +1,6 @@
 package br.unasp.boacao.presentation.profile
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -29,6 +30,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import br.unasp.boacao.BoaAcaoApplication
 import br.unasp.boacao.domain.model.UserRole
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 
 @Composable
 fun ProfileScreen(navController: NavController) {
@@ -38,8 +43,29 @@ fun ProfileScreen(navController: NavController) {
     val state by viewModel.uiState.collectAsState()
     val warmColor = Color(0xFFF06A38)
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { viewModel.uploadPhoto(context, it) }
+    val cropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
+        if (result.isSuccessful) {
+            result.uriContent?.let { viewModel.uploadPhoto(context, it) }
+        }
+    }
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { source ->
+            cropLauncher.launch(
+                CropImageContractOptions(
+                    uri = source,
+                    cropImageOptions = CropImageOptions(
+                        cropShape = CropImageView.CropShape.OVAL,
+                        fixAspectRatio = true,
+                        aspectRatioX = 1,
+                        aspectRatioY = 1,
+                        outputCompressFormat = Bitmap.CompressFormat.JPEG
+                    )
+                )
+            )
+        }
+    }
+    fun launchCrop() {
+        galleryLauncher.launch("image/*")
     }
 
     LaunchedEffect(state.successMessage, state.error) {
@@ -69,7 +95,7 @@ fun ProfileScreen(navController: NavController) {
                 .size(120.dp)
                 .clip(CircleShape)
                 .background(Color(0xFFF0F0F0))
-                .clickable { launcher.launch("image/*") },
+                .clickable { launchCrop() },
             contentAlignment = Alignment.Center
         ) {
             val photoBase64 = state.profile.photoBase64
@@ -95,7 +121,7 @@ fun ProfileScreen(navController: NavController) {
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        TextButton(onClick = { launcher.launch("image/*") }) {
+        TextButton(onClick = { launchCrop() }) {
             Icon(Icons.Default.CameraAlt, contentDescription = null, tint = warmColor, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
             Text("Alterar foto", color = warmColor, fontSize = 14.sp)

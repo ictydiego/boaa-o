@@ -16,6 +16,7 @@ data class EventListUiState(
     val isLoading: Boolean = true,
     val events: List<Event> = emptyList(),
     val subscribedEventIds: Set<String> = emptySet(),
+    val subscribingIds: Set<String> = emptySet(),
     val message: String? = null,
     val error: String? = null
 )
@@ -58,10 +59,19 @@ class EventListViewModel(
 
     fun subscribe(eventId: String) {
         val p = profile ?: return
+        // Guard against double/triple taps creating duplicate requests.
+        if (eventId in _uiState.value.subscribingIds || eventId in _uiState.value.subscribedEventIds) return
+        _uiState.value = _uiState.value.copy(subscribingIds = _uiState.value.subscribingIds + eventId)
         viewModelScope.launch {
             attendanceRepository.subscribe(eventId, p).fold(
-                { _uiState.value = _uiState.value.copy(message = "Inscrição confirmada!") },
-                { _uiState.value = _uiState.value.copy(error = it.message ?: "Erro ao inscrever") }
+                { _uiState.value = _uiState.value.copy(
+                    message = "Inscrição confirmada!",
+                    subscribingIds = _uiState.value.subscribingIds - eventId
+                ) },
+                { _uiState.value = _uiState.value.copy(
+                    error = it.message ?: "Erro ao inscrever",
+                    subscribingIds = _uiState.value.subscribingIds - eventId
+                ) }
             )
         }
     }
